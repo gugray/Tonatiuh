@@ -1,0 +1,46 @@
+/* Defines */
+:root {
+  --fntSans: sans-serif;
+  --fntSizeBase: 16px;
+  --clrText: #ccc;
+  --clrTextFaint: #888;
+  --clrTextFainter: #444;
+  --clrTextTerminal: #8d8b76;
+  --clrTextError: #b63939;
+  --clrBodyBg: #000;
+  --clrPanelBg: #202020;
+  --clrControl: #9f7e52;
+  --clrMyFrame: #d08e4c;
+}
+
+/* Global overrides */
+* { box-sizing: border-box; scrollbar-color: #333 var(--clrPanelBg); }
+::-webkit-scrollbar { background-color: var(--clrPanelBg); width: 8px; }
+::-webkit-scrollbar-thumb { background-color: #333; }
+
+a { color: #8bb3e0; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button {
+  display: block; border: none; margin: 0; padding: 0; background-color: transparent;
+  & svg { width: 100%; height: 100%; }
+  & svg * { stroke: var(--clrControl); }
+  &:hover svg * { stroke: var(--clrMyFrame); }
+  &[disabled] svg * { stroke: var(--clrTextFainter); }
+}
+
+& input[type=text] {
+  box-shadow: none; -webkit-box-shadow: none; -webkit-appearance: none; outline: none;
+  -webkit-border-radius: 0; border-radius: 0; border: none;
+  font-family: inherit; color: var(--clrText); background-color: var(--clrPanelBg);
+}
+
+/* Layout, specifics */
+html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+html { background-color: var(--clrBodyBg); }
+body {
+  font-family: var(--fntSans); font-size: var(--fntSizeBase);
+  color: var(--clrText);
+}
+#canv3 { position: fixed; width: 100%; height: 100%; background-color: transparent; }
+main { height: 100%; width: 100%; }

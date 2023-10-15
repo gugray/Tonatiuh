@@ -1,0 +1,17 @@
+{
+  "name": "threebies",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "ThreeJS livecoding",
+  "license": "MIT",
+  "author": {
+    "name": "Gábor L Ugray",
+    "email": "gabor.reads.this@gmail.com"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@jgoz/esbuild-plugin-livereload": "^2.0.3",
+    "esbuild": "^0.19.3"
+  }
+}
