@@ -9,6 +9,9 @@ const {BokehPass} = await import("three/addons/postprocessing/BokehPass.js");
 const {OutputPass} = await import("three/addons/postprocessing/OutputPass.js");
 const {RGBShiftShader} = await import("three/addons/shaders/RGBShiftShader.js");
 
+// Add shadows!
+
+
 // const modelUrl = "data/romanf-32k.ply";
 // const modelScale = 22;
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
@@ -19,6 +22,11 @@ const mat = new THREE.Matrix4();
 mat.makeRotationY(Math.PI * 0.5);
 const model = await loadModelFromPLY(THREE, modelUrl, mat);
 
+const useEffectsComposer = false;
+const preserveBuffer = true;
+const shadowMapSz = 4096;
+const shadowCamDim = 40;
+
 const startTime = Date.now();
 
 const scene = new THREE.Scene();
@@ -27,42 +35,56 @@ camera.position.z = 50;
 
 const renderer = new THREE.WebGLRenderer({
   canvas: document.getElementById("canv3"),
+  preserveDrawingBuffer: true,
   alpha: true,
 });
+renderer.autoClear = false;
+renderer.shadowMap.enabled = true;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 const controls = new OrbitControls(camera, renderer.domElement);
 
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
+let composer = null;
+if (useEffectsComposer) {
+  composer = new EffectComposer(renderer);
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
+  const outputPass = new OutputPass();
+  composer.addPass(outputPass);
+}
 
-// const bokehPass = new BokehPass(scene, camera, {
-//   focus: 26,
-//   aperture: 0.0025,
-//   maxblur: 0.005
-// });
-// composer.addPass(bokehPass);
+function makeDirLight(x, y, z, intensity) {
+  const light = new THREE.DirectionalLight(0xffffff, intensity);
+  light.position.set(x, y, z);
+  light.castShadow = true;
+  light.shadow.camera.top = shadowCamDim;
+  light.shadow.camera.left = -shadowCamDim;
+  light.shadow.camera.bottom = -shadowCamDim;
+  light.shadow.camera.right = shadowCamDim;
+  light.shadow.camera.near = 10;
+  light.shadow.camera.far = 500;
+  light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+  light.shadow.radius = 0.5;
+  return light;
+}
 
-const outputPass = new OutputPass();
-composer.addPass(outputPass);
-
-
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.008);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
 scene.add(ambientLight);
 
-const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.6);
-dirLight1.position.set(-2, 0, 1);
+const dirLight1 = makeDirLight(-100, 50, 100, 0.8);
 scene.add(dirLight1);
 
-const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight2.position.set(0.5, 2, 1);
+const dirLight2 = makeDirLight(0, 100, -10, 0.6);
 scene.add(dirLight2);
+// scene.add(new THREE.CameraHelper(dirLight2.shadow.camera));
 
 const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
 const material = new THREE.MeshPhongMaterial();
 
 const dim = 32;
 const mesh = new THREE.InstancedMesh(geometry, material, model.count);
+mesh.castShadow = true;
+mesh.receiveShadow = true;
 mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 scene.add(mesh);
 
@@ -115,18 +137,22 @@ function updateFromModel(time) {
 }
 
 function animate() {
-  // updateInGrid();
   updateFromModel(Date.now() - startTime);
-  composer.render();
+  if (useEffectsComposer) composer.render();
+  else {
+    if (preserveBuffer) renderer.clearDepth();
+    else renderer.clear();
+    renderer.render(scene, camera);
+  }
   stats.update();
-  // requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
 }
 
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
+  if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
 window.addEventListener('resize', onWindowResize);
