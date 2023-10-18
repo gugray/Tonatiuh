@@ -1,4 +1,7 @@
-import {loadModelFromPLY, ModelPoint} from "./modelLoader.js";
+import {loadModelFromPLY, ModelPoint} from "./model.js";
+import {simplex3curl} from "./curl.js";
+import * as noise from "./noise.js";
+import {update} from "../../public/three/addons/libs/tween.module.js";
 
 const THREE = await import("three");
 const {OrbitControls} = await import("three/addons/controls/OrbitControls.js");
@@ -9,11 +12,6 @@ const {BokehPass} = await import("three/addons/postprocessing/BokehPass.js");
 const {OutputPass} = await import("three/addons/postprocessing/OutputPass.js");
 const {RGBShiftShader} = await import("three/addons/shaders/RGBShiftShader.js");
 
-// Add shadows!
-
-
-// const modelUrl = "data/romanf-32k.ply";
-// const modelScale = 22;
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
 const modelScale = 36;
@@ -23,11 +21,16 @@ mat.makeRotationY(Math.PI * 0.5);
 const model = await loadModelFromPLY(THREE, modelUrl, mat);
 
 const useEffectsComposer = false;
-const preserveBuffer = true;
+const pulseSize = false;
+const useShadow = false;
+const flowSim = true;
+const simFieldMul = 0.5, simSpeed = 0.005, maxAge = 3000;
+const preserveBuffer = false;
 const shadowMapSz = 4096;
 const shadowCamDim = 40;
 
 const startTime = Date.now();
+let lastTime = startTime;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -56,15 +59,17 @@ if (useEffectsComposer) {
 function makeDirLight(x, y, z, intensity) {
   const light = new THREE.DirectionalLight(0xffffff, intensity);
   light.position.set(x, y, z);
-  light.castShadow = true;
-  light.shadow.camera.top = shadowCamDim;
-  light.shadow.camera.left = -shadowCamDim;
-  light.shadow.camera.bottom = -shadowCamDim;
-  light.shadow.camera.right = shadowCamDim;
-  light.shadow.camera.near = 10;
-  light.shadow.camera.far = 500;
-  light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
-  light.shadow.radius = 0.5;
+  if (useShadow) {
+    light.castShadow = true;
+    light.shadow.camera.top = shadowCamDim;
+    light.shadow.camera.left = -shadowCamDim;
+    light.shadow.camera.bottom = -shadowCamDim;
+    light.shadow.camera.right = shadowCamDim;
+    light.shadow.camera.near = 10;
+    light.shadow.camera.far = 500;
+    light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+    light.shadow.radius = 4;
+  }
   return light;
 }
 
@@ -81,7 +86,6 @@ scene.add(dirLight2);
 const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
 const material = new THREE.MeshPhongMaterial();
 
-const dim = 32;
 const mesh = new THREE.InstancedMesh(geometry, material, model.count);
 mesh.castShadow = true;
 mesh.receiveShadow = true;
@@ -94,58 +98,123 @@ document.body.appendChild(stats.dom);
 const tmpObj = new THREE.Object3D();
 const tmpNrm = new THREE.Vector3();
 const tmpHor = new THREE.Vector3();
-const tmpVer = new THREE.Vector3();
+const tmpUnitZ = new THREE.Vector3(0, 0, 1);
+const tmpUnitY = new THREE.Vector3(0, 1, 0);
 const tmpClr = new THREE.Color();
 const tmpMpt = new ModelPoint();
 
+model.putAllOnModel();
+for (let ix = 0; ix < model.count; ++ix)
+  model.setPointAge(ix, Math.floor(maxAge * Math.random()));
+noise.seed(Math.random());
+updateFromModel(0);
+
+function rotateTmpObjToNrm() {
+  tmpObj.rotation.z = Math.atan2(tmpNrm.y, tmpNrm.x);
+  tmpHor.set(tmpNrm.x, tmpNrm.y, 0).normalize();
+  tmpObj.rotation.y = -Math.atan2(tmpHor.z, tmpHor.x);
+  tmpObj.rotation.x = -Math.atan2(tmpNrm.dot(tmpUnitZ), tmpNrm.dot(tmpNrm.clone().cross(tmpUnitZ)));
+}
+
+function rotateTmpObjToNrm2() {
+  const angle = tmpUnitY.angleTo(tmpNrm);
+  const axis = new THREE.Vector3().crossVectors(tmpUnitY, tmpNrm).normalize();
+  tmpObj.setRotationFromAxisAngle(axis, angle);
+}
+
+function updateSimulation(dT) {
+  for (let i = 0; i < model.count; ++i) {
+
+    if ((i % 2) == 0) {
+      tmpObj.scale.set(0, 0, 0);
+    }
+    else {
+      model.getPoint(i, tmpMpt);
+      if (tmpMpt.age > maxAge) {
+        tmpMpt.age = 0;
+        tmpMpt.cx = tmpMpt.mx;
+        tmpMpt.cy = tmpMpt.my;
+        tmpMpt.cz = tmpMpt.mz;
+      }
+
+      let curl = simplex3curl(tmpMpt.cx * simFieldMul, tmpMpt.cy * simFieldMul, tmpMpt.cz * simFieldMul);
+      if (curl[0] != curl[0] || curl[1] != curl[1] || curl[2] != curl[2]) {
+        console.log(curl);
+        curl = [0, 0, 0];
+      }
+      tmpMpt.vx = simSpeed * curl[0];
+      tmpMpt.vy = simSpeed * curl[1];
+      tmpMpt.vz = simSpeed * curl[2];
+      tmpMpt.cx += tmpMpt.vx;
+      tmpMpt.cy += tmpMpt.vy;
+      tmpMpt.cz += tmpMpt.vz;
+      tmpMpt.age += dT;
+      model.updatePoint(i, tmpMpt.cx, tmpMpt.cy, tmpMpt.cz, tmpMpt.vx, tmpMpt.vy, tmpMpt.vz, tmpMpt.age);
+
+      // Update instance's matrix and color
+      tmpObj.scale.set(1, 1, 1);
+      tmpObj.position.set(tmpMpt.cx * modelScale, tmpMpt.cy * modelScale, tmpMpt.cz * modelScale);
+      tmpNrm.set(tmpMpt.vx, tmpMpt.vy, tmpMpt.vz);
+      tmpNrm.normalize();
+      rotateTmpObjToNrm2();
+    }
+    tmpObj.updateMatrix();
+    mesh.setMatrixAt(i, tmpObj.matrix);
+    tmpClr.set(tmpMpt.r / 64, tmpMpt.g / 64, tmpMpt.b / 64);
+    mesh.setColorAt(i, tmpClr);
+  }
+}
 
 function updateFromModel(time) {
 
   mesh.rotation.y = Math.sin(time * 0.0002) * 0.3;
 
-  tmpVer.set(0, 0, 1);
-
   for (let i = 0; i < model.count; ++i) {
     model.getPoint(i, tmpMpt);
-    tmpObj.position.set(tmpMpt.x * modelScale, tmpMpt.y * modelScale, tmpMpt.z * modelScale);
+    tmpObj.position.set(tmpMpt.cx * modelScale, tmpMpt.cy * modelScale, tmpMpt.cz * modelScale);
 
     tmpNrm.set(tmpMpt.nx, tmpMpt.ny, tmpMpt.nz);
-    tmpObj.rotation.z = Math.atan2(tmpNrm.y, tmpNrm.x);
-    tmpHor.set(tmpNrm.x, tmpNrm.y, 0).normalize();
-    tmpObj.rotation.y = -Math.atan2(tmpHor.z, tmpHor.x);
-    tmpObj.rotation.x = -Math.atan2(tmpNrm.dot(tmpVer), tmpNrm.dot(tmpNrm.clone().cross(tmpVer)));
+    rotateTmpObjToNrm();
 
     // tmpObj.rotation.x = Math.PI * 0.25;
     // tmpObj.rotation.y = Math.PI * 0.25;
 
     // tmpObj.rotation.y =
-    //   Math.sin(tmpMpt.x / 4 + time * 0.0005) +
-    //   Math.sin(tmpMpt.y / 4 + time * 0.0005) +
-    //   Math.sin(tmpMpt.z / 4 + time * 0.0005);
+    //   Math.sin(tmpMpt.cx / 4 + time * 0.0005) +
+    //   Math.sin(tmpMpt.cy / 4 + time * 0.0005) +
+    //   Math.sin(tmpMpt.cz / 4 + time * 0.0005);
     // tmpObj.rotation.z = tmpObj.rotation.y * 2;
 
-    tmpObj.scale.y = 2 + Math.sin(time * 0.001) * 1.5;
-    // tmpObj.scale.setScalar(1 + Math.sin(time * 0.001) * 0.3 - 0.3);
+    if (pulseSize) {
+      tmpObj.scale.y = 2 + Math.sin(time * 0.001) * 1.5;
+      // tmpObj.scale.setScalar(1 + Math.sin(time * 0.001) * 0.3 - 0.3);
+    }
 
     tmpObj.updateMatrix();
     mesh.setMatrixAt(i, tmpObj.matrix);
     tmpClr.set(tmpMpt.r / 64, tmpMpt.g / 64, tmpMpt.b / 64);
     mesh.setColorAt(i, tmpClr);
   }
-  mesh.instanceMatrix.needsUpdate = true;
-  mesh.computeBoundingSphere();
 }
 
 function animate() {
-  updateFromModel(Date.now() - startTime);
+  requestAnimationFrame(animate);
+
+  const now = Date.now();
+  if (flowSim) updateSimulation(now - lastTime);
+  else updateFromModel(now - startTime);
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.computeBoundingSphere();
+  lastTime = now;
+
   if (useEffectsComposer) composer.render();
   else {
     if (preserveBuffer) renderer.clearDepth();
     else renderer.clear();
     renderer.render(scene, camera);
   }
+
   stats.update();
-  requestAnimationFrame(animate);
 }
 
 function onWindowResize() {

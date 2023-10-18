@@ -1,37 +1,97 @@
 export class ModelPoint {
-  constructor(x, y, z, r, g, b, nx, ny, nz) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    this.r = r;
-    this.g = g;
-    this.b = b;
-    this.nx = nx;
-    this.ny = ny;
-    this.nz = nz;
+  constructor() {
+    // Model point coordinates
+    this.mx = 0;
+    this.my = 0;
+    this.mz = 0;
+    // Model point color
+    this.r = 0;
+    this.g = 0;
+    this.b = 0;
+    // Model point normal
+    this.nx = 0;
+    this.ny = 0;
+    this.nz = 0;
+    // Current point coordinates (when animating)
+    this.cx = 0;
+    this.cy = 0;
+    this.cz = 0;
+    // Curent point velocity (when animating)
+    this.vx = 0;
+    this.vy = 0;
+    this.vz = 0;
+    // Current particle age
+    this.age = 0;
   }
 }
 
 export class Model {
-  constructor(values) {
-    this.data = new Float32Array(values);
-    this.count = values.length  / 9;
+  constructor(modelValues) {
+    this.count = modelValues.length  / 9;
+    this.data = new Float32Array(this.count * 16);
+    for (let ix = 0; ix < this.count; ++ix)
+    {
+      const ofsValues = ix * 9;
+      const ofsData = ix * 16;
+      for (let j = 0; j < 9; ++j)
+        this.data[ofsData + j] = modelValues[ofsValues + j];
+    }
   }
   /**
    * @param {number} ix Index of point to retrieve
    * @param {ModelPoint} mp ModelPoint instance that will receive values
    */
   getPoint(ix, mp) {
-    const ofs = ix * 9;
-    mp.x = this.data[ofs];
-    mp.y = this.data[ofs + 1];
-    mp.z = this.data[ofs + 2];
+    const ofs = ix * 16;
+    mp.mx = this.data[ofs];
+    mp.my = this.data[ofs + 1];
+    mp.mz = this.data[ofs + 2];
     mp.r = this.data[ofs + 3];
     mp.g = this.data[ofs + 4];
     mp.b = this.data[ofs + 5];
     mp.nx = this.data[ofs + 6];
     mp.ny = this.data[ofs + 7];
     mp.nz = this.data[ofs + 8];
+    mp.cx = this.data[ofs + 9];
+    mp.cy = this.data[ofs + 10];
+    mp.cz = this.data[ofs + 11];
+    mp.vx = this.data[ofs + 12];
+    mp.vy = this.data[ofs + 13];
+    mp.vz = this.data[ofs + 14];
+    mp.age = this.data[ofs + 15];
+  }
+
+  updatePoint(ix, cx, cy, cz, vx, vy, vz, age) {
+    const ofs = ix * 16;
+    this.data[ofs + 9] = cx;
+    this.data[ofs + 10] = cy;
+    this.data[ofs + 11] = cz;
+    this.data[ofs + 12] = vx;
+    this.data[ofs + 13] = vy;
+    this.data[ofs + 14] = vz;
+    this.data[ofs + 15] = age;
+  }
+
+  setPointAge(ix, age) {
+    this.data[ix * 16 + 15] = age;
+  }
+
+  putAllOnModel() {
+    for (let ix = 0; ix < this.count; ++ix) {
+      const ofs = ix * 16;
+      this.data[ofs + 9] = this.data[ofs];
+      this.data[ofs + 10] = this.data[ofs + 1];
+      this.data[ofs + 11] = this.data[ofs + 2];
+    }
+  }
+
+  scatterAll() {
+    for (let ix = 0; ix < this.count; ++ix) {
+      const ofs = ix * 16;
+      this.data[ofs + 9] =  Math.random() - 0.5;
+      this.data[ofs + 10] = Math.random() - 0.5;
+      this.data[ofs + 11] = Math.random() - 0.5;
+    }
   }
 }
 
