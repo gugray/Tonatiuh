@@ -24,7 +24,7 @@ const useEffectsComposer = false;
 const pulseSize = false;
 const useShadow = false;
 const flowSim = true;
-const simFieldMul = 0.5, simSpeed = 0.005, maxAge = 3000;
+const simFieldMul = 2.5, simSpeed = 0.005, maxAge = 3000;
 const preserveBuffer = false;
 const shadowMapSz = 4096;
 const shadowCamDim = 40;
@@ -32,8 +32,14 @@ const shadowCamDim = 40;
 const startTime = Date.now();
 let lastTime = startTime;
 
+const camRotAccel = new THREE.Vector3(0, 0, 0);
+const camRotSpeed = new THREE.Vector3(0, 0, 0);
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const cameraGroup = new THREE.Group();
+scene.add(cameraGroup);
+cameraGroup.add(camera);
 camera.position.z = 50;
 
 const renderer = new THREE.WebGLRenderer({
@@ -200,6 +206,14 @@ function updateFromModel(time) {
 function animate() {
   requestAnimationFrame(animate);
 
+  camRotSpeed.add(camRotAccel);
+  cameraGroup.rotation.y += camRotSpeed.y;
+  cameraGroup.rotation.x += camRotSpeed.x;
+
+  camRotSpeed.multiplyScalar(0.985);
+  if (Math.abs(camRotSpeed.y) < 0.0001) camRotSpeed.y = 0;
+  if (Math.abs(camRotSpeed.x) < 0.0001) camRotSpeed.x = 0;
+
   const now = Date.now();
   if (flowSim) updateSimulation(now - lastTime);
   else updateFromModel(now - startTime);
@@ -224,5 +238,43 @@ function onWindowResize() {
   if (composer) composer.setSize(window.innerWidth, window.innerHeight);
 }
 
-window.addEventListener('resize', onWindowResize);
 animate();
+
+window.addEventListener('resize', onWindowResize);
+
+document.body.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey)) {
+    if (e.key == "Enter") {
+      document.documentElement.requestFullscreen();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+  else {
+    if (e.key == "ArrowLeft") {
+      camRotAccel.y = 0.001;
+    }
+    else if (e.key == "ArrowRight") {
+      camRotAccel.y = -0.001;
+    }
+    else if (e.key == "ArrowUp") {
+      camRotAccel.x = 0.001;
+    }
+    else if (e.key == "ArrowDown") {
+      camRotAccel.x = -0.001;
+    }
+  }
+});
+
+document.body.addEventListener("keyup", e => {
+  if ((e.ctrlKey || e.metaKey)) {
+  }
+  else {
+    if (e.key == "ArrowLeft" || e.key == "ArrowRight") {
+      camRotAccel.y = 0;
+    }
+    else if (e.key == "ArrowUp" || e.key == "ArrowDown") {
+      camRotAccel.x = 0;
+    }
+  }
+});
