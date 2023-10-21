@@ -26,9 +26,26 @@ const args = (argList => {
 })(process.argv);
 
 const sketch = args.sketch;
+const basePath = "src/" + sketch + "/";
 
 async function build() {
-  const basePath = "src/" + sketch + "/";
+
+  // fs.copyFileSync(`${basePath}live.js`, "public/live.js");
+  // fs.watch(`${basePath}live.js`, (e, f) => {
+  //   if (e != "change") return;
+  //   fs.copyFileSync(`${basePath}live.js`, "public/live.js");
+  //   console.log("upd");
+  // });
+
+  // Context for "live.js" part
+  const contextLive = await esbuild.context({
+    entryPoints: [`${basePath}live.js`],
+    outdir: "public",
+    loader: { ".js": "copy" },
+  });
+  await contextLive.watch();
+
+  // Cotext for main app
   const entryPoints = ["index.html", "app.css", "app.js", "update_worker.js"];
   for (let i = 0; i < entryPoints.length; ++i)
     entryPoints[i] = basePath + entryPoints[i];

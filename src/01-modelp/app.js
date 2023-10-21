@@ -18,13 +18,10 @@ const modelScale = 36;
 const mat = new THREE.Matrix4();
 mat.makeRotationY(Math.PI * 0.5);
 const model = await loadModelFromPLY(THREE, modelUrl, mat);
-const updater = new Worker("update_worker.js");
 
 const useEffectsComposer = false;
-const pulseSize = false;
+const pulseSize = true;
 const useShadow = false;
-const flowSim = true;
-const simFieldMul = 2.5, simSpeed = 0.0005, maxAge = 30000;
 const preserveBuffer = false;
 const shadowMapSz = 4096;
 const shadowCamDim = 40;
@@ -34,6 +31,44 @@ let lastTime = startTime;
 
 const camRotAccel = new THREE.Vector3(0, 0, 0);
 const camRotSpeed = new THREE.Vector3(0, 0, 0);
+
+let liveStr, live;
+async function getLive() {
+  const r = await fetch("live.js");
+  let str = await r.text();
+  str = str.replaceAll("///","");
+  str = str.replaceAll("export","");
+  if (str == liveStr) return;
+  console.log("change");
+  liveStr = str;
+  live = Function(liveStr)();
+}
+await getLive();
+setInterval(async () => await getLive(), 100);
+
+const updater = new Worker("update_worker.js");
+let updateRunning = false;
+// let updaterMsgArrayBuf = new SharedArrayBuffer(8);
+// let updaterMsgInt32Arr = new Int32Array(updaterMsgArrayBuf);
+let lastUpdateTime = null;
+function startUpdateIteration() {
+  updateRunning = true;
+  let dT = 10;
+  const now = Date.now();
+  if (lastUpdateTime != null) dT = now - lastUpdateTime;
+  lastUpdateTime = now;
+  updater.postMessage({
+    array: model.array, dT,
+    modelScale: live.opts.modelScale,
+    simFieldMul: live.opts.simFieldMul,
+    simSpeed: live.opts.simSpeed,
+    maxAge: live.opts.maxAge,
+  });
+}
+updater.onmessage = () => {
+  updateRunning = false;
+  if (live.opts.flowSim) startUpdateIteration();
+}
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -98,7 +133,6 @@ mesh.receiveShadow = true;
 mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 scene.add(mesh);
 
-// const stats = Stats.default();
 const stats = new Stats();
 document.body.appendChild(stats.dom);
 
@@ -112,7 +146,7 @@ const tmpMpt = new ModelPoint();
 
 model.putAllOnModel();
 for (let ix = 0; ix < model.count; ++ix)
-  model.setPointAge(ix, Math.floor(maxAge * Math.random()));
+  model.setPointAge(ix, Math.floor(live.opts.maxAge * Math.random()));
 noise.seed(Math.random());
 updateFromModel(0);
 
@@ -147,11 +181,9 @@ function updateSimulation(dT) {
     mesh.setColorAt(i, tmpClr);
   }
 
-  // Trigger new update calculation
-  updater.postMessage({
-    array: model.array,
-    dT, modelScale, simFieldMul, simSpeed, maxAge,
-  });
+  // Trigger new update calculation if last one has finished
+  if (live.opts.flowSim && !updateRunning)
+    startUpdateIteration();
 }
 
 function updateFromModel(time) {
@@ -165,14 +197,14 @@ function updateFromModel(time) {
     tmpNrm.set(tmpMpt.nx, tmpMpt.ny, tmpMpt.nz);
     rotateTmpObjToNrm();
 
-    // tmpObj.rotation.x = Math.PI * 0.25;
-    // tmpObj.rotation.y = Math.PI * 0.25;
+    tmpObj.rotation.x = Math.PI * 0.25;
+    tmpObj.rotation.y = Math.PI * 0.25;
 
-    // tmpObj.rotation.y =
-    //   Math.sin(tmpMpt.cx / 4 + time * 0.0005) +
-    //   Math.sin(tmpMpt.cy / 4 + time * 0.0005) +
-    //   Math.sin(tmpMpt.cz / 4 + time * 0.0005);
-    // tmpObj.rotation.z = tmpObj.rotation.y * 2;
+    tmpObj.rotation.y =
+      Math.sin(tmpMpt.cx / 4 + time * 0.0005) +
+      Math.sin(tmpMpt.cy / 4 + time * 0.0005) +
+      Math.sin(tmpMpt.cz / 4 + time * 0.0005);
+    tmpObj.rotation.z = tmpObj.rotation.y * 0.1;
 
     if (pulseSize) {
       tmpObj.scale.y = 2 + Math.sin(time * 0.001) * 1.5;
@@ -198,7 +230,7 @@ function animate() {
   if (Math.abs(camRotSpeed.x) < 0.0001) camRotSpeed.x = 0;
 
   const now = Date.now();
-  if (flowSim) updateSimulation(now - lastTime);
+  if (live.opts.flowSim) updateSimulation(now - lastTime);
   else updateFromModel(now - startTime);
   mesh.instanceMatrix.needsUpdate = true;
   mesh.computeBoundingSphere();

@@ -32,11 +32,12 @@ function updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAg
 
 onmessage = (e) => {
   const {array, dT, modelScale, simFieldMul, simSpeed, maxAge} = e.data;
+  // console.log("dT: " + dT);
   const model = new Model(array);
   for (let i = 0; i < model.count; ++i) {
+    // if ((i % 6) != 0) continue;
     updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAge);
   }
-  // postMessage(0);
-  console.log(model.count);
+  postMessage("done");
 };
 
