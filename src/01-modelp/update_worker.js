@@ -30,14 +30,37 @@ function updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAg
   model.updatePoint(i, tmpMpt.cx, tmpMpt.cy, tmpMpt.cz, tmpMpt.vx, tmpMpt.vy, tmpMpt.vz, tmpMpt.age);
 }
 
+let model, batchSz, batchMod;
+let modelScale, simFieldMul, simSpeed, maxAge;
+let running = false;
+let lastUpdateTime = null;
+
 onmessage = (e) => {
-  const {array, dT, modelScale, simFieldMul, simSpeed, maxAge} = e.data;
-  // console.log("dT: " + dT);
-  const model = new Model(array);
-  for (let i = 0; i < model.count; ++i) {
-    // if ((i % 6) != 0) continue;
-    updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAge);
-  }
-  postMessage("done");
+  if (e.data.array) model = new Model(e.data.array);
+  if ("batchSz" in e.data) batchSz = e.data.batchSz;
+  if ("batchMod" in e.data) batchMod = e.data.batchMod;
+  if ("modelScale" in e.data) modelScale = e.data.modelScale;
+  if ("simFieldMul" in e.data) simFieldMul = e.data.simFieldMul;
+  if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
+  if ("maxAge" in e.data) maxAge = e.data.maxAge;
+  if ("running" in e.data) running = e.data.running;
+
+  if (running) updateLoop();
 };
 
+function updateLoop() {
+
+  if (!running) return;
+
+  let dT = 10;
+  const now = Date.now();
+  if (lastUpdateTime != null) dT = now - lastUpdateTime;
+  lastUpdateTime = now;
+
+  for (let i = 0; i < model.count; ++i) {
+    if ((i % batchSz) != batchMod) continue;
+    updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAge);
+  }
+
+  setTimeout(updateLoop, 0);
+}

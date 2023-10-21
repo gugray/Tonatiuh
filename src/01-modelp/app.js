@@ -39,36 +39,36 @@ async function getLive() {
   str = str.replaceAll("///","");
   str = str.replaceAll("export","");
   if (str == liveStr) return;
-  console.log("change");
   liveStr = str;
   live = Function(liveStr)();
+  updateUpdaters();
 }
 await getLive();
 setInterval(async () => await getLive(), 100);
 
-const updater = new Worker("update_worker.js");
-let updateRunning = false;
-// let updaterMsgArrayBuf = new SharedArrayBuffer(8);
-// let updaterMsgInt32Arr = new Int32Array(updaterMsgArrayBuf);
-let lastUpdateTime = null;
-function startUpdateIteration() {
-  updateRunning = true;
-  let dT = 10;
-  const now = Date.now();
-  if (lastUpdateTime != null) dT = now - lastUpdateTime;
-  lastUpdateTime = now;
+const updater1 = new Worker("update_worker.js");
+const updater2 = new Worker("update_worker.js");
+function initUpdater(updater, batchSz, batchMod) {
   updater.postMessage({
-    array: model.array, dT,
+    batchSz, batchMod,
+    array: model.array,
+  });
+}
+initUpdater(updater1, 2, 0);
+initUpdater(updater2, 2, 1);
+function updateUpdaters() {
+  if (!updater1) return;
+  const msg = {
+    running: live.opts.flowSim,
     modelScale: live.opts.modelScale,
     simFieldMul: live.opts.simFieldMul,
     simSpeed: live.opts.simSpeed,
     maxAge: live.opts.maxAge,
-  });
+  };
+  updater1.postMessage(msg);
+  updater2.postMessage(msg);
 }
-updater.onmessage = () => {
-  updateRunning = false;
-  if (live.opts.flowSim) startUpdateIteration();
-}
+updateUpdaters();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -125,7 +125,7 @@ scene.add(dirLight2);
 // scene.add(new THREE.CameraHelper(dirLight2.shadow.camera));
 
 const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
-const material = new THREE.MeshPhongMaterial();
+const material = new THREE.MeshPhongMaterial({ transparent: true });
 
 const mesh = new THREE.InstancedMesh(geometry, material, model.count);
 mesh.castShadow = true;
@@ -179,11 +179,8 @@ function updateSimulation(dT) {
     mesh.setMatrixAt(i, tmpObj.matrix);
     tmpClr.set(tmpMpt.r / 64, tmpMpt.g / 64, tmpMpt.b / 64);
     mesh.setColorAt(i, tmpClr);
+    mesh.material.opacity = 0.5;
   }
-
-  // Trigger new update calculation if last one has finished
-  if (live.opts.flowSim && !updateRunning)
-    startUpdateIteration();
 }
 
 function updateFromModel(time) {
@@ -204,11 +201,10 @@ function updateFromModel(time) {
       Math.sin(tmpMpt.cx / 4 + time * 0.0005) +
       Math.sin(tmpMpt.cy / 4 + time * 0.0005) +
       Math.sin(tmpMpt.cz / 4 + time * 0.0005);
-    tmpObj.rotation.z = tmpObj.rotation.y * 0.1;
+    tmpObj.rotation.x = tmpObj.rotation.y * 0.5;
 
     if (pulseSize) {
-      tmpObj.scale.y = 2 + Math.sin(time * 0.001) * 1.5;
-      // tmpObj.scale.setScalar(1 + Math.sin(time * 0.001) * 0.3 - 0.3);
+      tmpObj.scale.y = 1 + Math.sin(time * 0.001) * 1;
     }
 
     tmpObj.updateMatrix();
