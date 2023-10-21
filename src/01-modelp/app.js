@@ -1,16 +1,15 @@
 import {loadModelFromPLY, ModelPoint} from "./model.js";
 import {simplex3curl} from "./curl.js";
 import * as noise from "./noise.js";
-import {update} from "../../public/three/addons/libs/tween.module.js";
 
-const THREE = await import("three");
-const {OrbitControls} = await import("three/addons/controls/OrbitControls.js");
-const Stats = await import("three/addons/libs/stats.module.js");
-const {EffectComposer} = await import("three/addons/postprocessing/EffectComposer.js");
-const {RenderPass} = await import("three/addons/postprocessing/RenderPass.js");
-const {BokehPass} = await import("three/addons/postprocessing/BokehPass.js");
-const {OutputPass} = await import("three/addons/postprocessing/OutputPass.js");
-const {RGBShiftShader} = await import("three/addons/shaders/RGBShiftShader.js");
+import * as THREE from "three";
+import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+import Stats from "three/addons/libs/stats.module.js";
+import {EffectComposer} from "three/addons/postprocessing/EffectComposer.js";
+import {RenderPass} from "three/addons/postprocessing/RenderPass.js";
+import {BokehPass} from "three/addons/postprocessing/BokehPass.js";
+import {OutputPass} from "three/addons/postprocessing/OutputPass.js";
+import {RGBShiftShader} from "three/addons/shaders/RGBShiftShader.js";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
@@ -19,12 +18,13 @@ const modelScale = 36;
 const mat = new THREE.Matrix4();
 mat.makeRotationY(Math.PI * 0.5);
 const model = await loadModelFromPLY(THREE, modelUrl, mat);
+const updater = new Worker("update_worker.js");
 
 const useEffectsComposer = false;
 const pulseSize = false;
 const useShadow = false;
 const flowSim = true;
-const simFieldMul = 2.5, simSpeed = 0.005, maxAge = 3000;
+const simFieldMul = 2.5, simSpeed = 0.0005, maxAge = 30000;
 const preserveBuffer = false;
 const shadowMapSz = 4096;
 const shadowCamDim = 40;
@@ -98,7 +98,8 @@ mesh.receiveShadow = true;
 mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 scene.add(mesh);
 
-const stats = Stats.default();
+// const stats = Stats.default();
+const stats = new Stats();
 document.body.appendChild(stats.dom);
 
 const tmpObj = new THREE.Object3D();
@@ -129,46 +130,28 @@ function rotateTmpObjToNrm2() {
 }
 
 function updateSimulation(dT) {
+
   for (let i = 0; i < model.count; ++i) {
 
-    if ((i % 2) == 0) {
-      tmpObj.scale.set(0, 0, 0);
-    }
-    else {
-      model.getPoint(i, tmpMpt);
-      if (tmpMpt.age > maxAge) {
-        tmpMpt.age = 0;
-        tmpMpt.cx = tmpMpt.mx;
-        tmpMpt.cy = tmpMpt.my;
-        tmpMpt.cz = tmpMpt.mz;
-      }
+    model.getPoint(i, tmpMpt);
 
-      let curl = simplex3curl(tmpMpt.cx * simFieldMul, tmpMpt.cy * simFieldMul, tmpMpt.cz * simFieldMul);
-      if (curl[0] != curl[0] || curl[1] != curl[1] || curl[2] != curl[2]) {
-        console.log(curl);
-        curl = [0, 0, 0];
-      }
-      tmpMpt.vx = simSpeed * curl[0];
-      tmpMpt.vy = simSpeed * curl[1];
-      tmpMpt.vz = simSpeed * curl[2];
-      tmpMpt.cx += tmpMpt.vx;
-      tmpMpt.cy += tmpMpt.vy;
-      tmpMpt.cz += tmpMpt.vz;
-      tmpMpt.age += dT;
-      model.updatePoint(i, tmpMpt.cx, tmpMpt.cy, tmpMpt.cz, tmpMpt.vx, tmpMpt.vy, tmpMpt.vz, tmpMpt.age);
-
-      // Update instance's matrix and color
-      tmpObj.scale.set(1, 1, 1);
-      tmpObj.position.set(tmpMpt.cx * modelScale, tmpMpt.cy * modelScale, tmpMpt.cz * modelScale);
-      tmpNrm.set(tmpMpt.vx, tmpMpt.vy, tmpMpt.vz);
-      tmpNrm.normalize();
-      rotateTmpObjToNrm2();
-    }
+    // Update instance's matrix and color
+    tmpObj.scale.set(1, 1, 1);
+    tmpObj.position.set(tmpMpt.cx * modelScale, tmpMpt.cy * modelScale, tmpMpt.cz * modelScale);
+    tmpNrm.set(tmpMpt.vx, tmpMpt.vy, tmpMpt.vz);
+    tmpNrm.normalize();
+    rotateTmpObjToNrm2();
     tmpObj.updateMatrix();
     mesh.setMatrixAt(i, tmpObj.matrix);
     tmpClr.set(tmpMpt.r / 64, tmpMpt.g / 64, tmpMpt.b / 64);
     mesh.setColorAt(i, tmpClr);
   }
+
+  // Trigger new update calculation
+  updater.postMessage({
+    array: model.array,
+    dT, modelScale, simFieldMul, simSpeed, maxAge,
+  });
 }
 
 function updateFromModel(time) {

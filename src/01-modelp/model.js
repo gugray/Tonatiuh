@@ -26,15 +26,25 @@ export class ModelPoint {
 }
 
 export class Model {
-  constructor(modelValues) {
-    this.count = modelValues.length  / 9;
-    this.data = new Float32Array(this.count * 16);
-    for (let ix = 0; ix < this.count; ++ix)
-    {
-      const ofsValues = ix * 9;
-      const ofsData = ix * 16;
-      for (let j = 0; j < 9; ++j)
-        this.data[ofsData + j] = modelValues[ofsValues + j];
+  constructor(val) {
+    // Array of model values, provided by loadModelFromPLY, 9 values per point
+    if (Array.isArray(val)) {
+      const modelValues = val;
+      this.count = modelValues.length / 9;
+      this.array = new SharedArrayBuffer(this.count * 16 * 4);
+      this.data = new Float32Array(this.array);
+      for (let ix = 0; ix < this.count; ++ix) {
+        const ofsValues = ix * 9;
+        const ofsData = ix * 16;
+        for (let j = 0; j < 9; ++j)
+          this.data[ofsData + j] = modelValues[ofsValues + j];
+      }
+    }
+    // Existing SharedArrayBuffer of a model
+    else {
+      this.array = val;
+      this.count = this.array.byteLength / 16 / 4;
+      this.data = new Float32Array(this.array);
     }
   }
   /**

@@ -9,6 +9,7 @@
     "email": "gabor.reads.this@gmail.com"
   },
   "dependencies": {
+    "three": "^0.157.0"
   },
   "devDependencies": {
     "@jgoz/esbuild-plugin-livereload": "^2.0.3",
