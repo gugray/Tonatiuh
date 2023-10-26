@@ -1,7 +1,7 @@
 import {loadModelFromPLY, ModelPoint} from "./model.js";
 import {simplex3curl} from "./curl.js";
+import {connectAudioAPI, setGain, updateFFT} from "../fft.js";
 import * as noise from "./noise.js";
-
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import Stats from "three/addons/libs/stats.module.js";
@@ -10,6 +10,14 @@ import {RenderPass} from "three/addons/postprocessing/RenderPass.js";
 import {BokehPass} from "three/addons/postprocessing/BokehPass.js";
 import {OutputPass} from "three/addons/postprocessing/OutputPass.js";
 import {RGBShiftShader} from "three/addons/shaders/RGBShiftShader.js";
+
+// TODO
+// -- Bring funs to live
+// -- Bring shadows to live
+// -- Move lights? add spotlights? add bloom filter?
+// -- Add yellow BG lines?
+// OK Show volume
+// -- Move non-curl update into web worker too
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
@@ -20,17 +28,22 @@ mat.makeRotationY(Math.PI * 0.5);
 const model = await loadModelFromPLY(THREE, modelUrl, mat);
 
 const useEffectsComposer = false;
-const pulseSize = true;
+let preserveBuffer = false;
+const pulseSize = false;
 const useShadow = false;
-const preserveBuffer = false;
 const shadowMapSz = 4096;
 const shadowCamDim = 40;
 
 const startTime = Date.now();
 let lastTime = startTime;
+let [lo, mid, hi, vol] = [0, 0, 0, 0];
+const elmVolumeVal = document.getElementById("volumeVal");
+const elmVolume = document.getElementById("volume");
 
-const camRotAccel = new THREE.Vector3(0, 0, 0);
-const camRotSpeed = new THREE.Vector3(0, 0, 0);
+const camRotAccel = new THREE.Vector4(); // x: altitude, y: azimuth
+const camRotSpeed = new THREE.Vector4(); // x: altitude, y: azimuth
+const camPanAccel = new THREE.Vector3(); // x, y: pan; z: distance
+const camPanSpeed = new THREE.Vector3(); // x, y: pan; z: distance
 
 let liveStr, live;
 async function getLive() {
@@ -41,6 +54,7 @@ async function getLive() {
   if (str == liveStr) return;
   liveStr = str;
   live = Function(liveStr)();
+  setGain(live.opts.gain);
   updateUpdaters();
 }
 await getLive();
@@ -72,10 +86,14 @@ updateUpdaters();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const cameraGroup = new THREE.Group();
-scene.add(cameraGroup);
-cameraGroup.add(camera);
-camera.position.z = 50;
+const camPanGroup = new THREE.Group();
+camPanGroup.position.z = 50;
+camPanGroup.add(camera);
+const camAltitudeGroup = new THREE.Group();
+camAltitudeGroup.add(camPanGroup);
+const camAzimuthGroup = new THREE.Group();
+camAzimuthGroup.add(camAltitudeGroup);
+scene.add(camAzimuthGroup);
 
 const renderer = new THREE.WebGLRenderer({
   canvas: document.getElementById("canv3"),
@@ -86,7 +104,7 @@ renderer.autoClear = false;
 renderer.shadowMap.enabled = true;
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-const controls = new OrbitControls(camera, renderer.domElement);
+// const controls = new OrbitControls(camera, renderer.domElement);
 
 let composer = null;
 if (useEffectsComposer) {
@@ -171,6 +189,9 @@ function updateSimulation(dT) {
 
     // Update instance's matrix and color
     tmpObj.scale.set(1, 1, 1);
+    tmpObj.scale.y = 1 + hi / 256;
+    tmpObj.scale.x = tmpObj.scale.z = 1 + mid / 256;
+
     tmpObj.position.set(tmpMpt.cx * modelScale, tmpMpt.cy * modelScale, tmpMpt.cz * modelScale);
     tmpNrm.set(tmpMpt.vx, tmpMpt.vy, tmpMpt.vz);
     tmpNrm.normalize();
@@ -179,7 +200,7 @@ function updateSimulation(dT) {
     mesh.setMatrixAt(i, tmpObj.matrix);
     tmpClr.set(tmpMpt.r / 64, tmpMpt.g / 64, tmpMpt.b / 64);
     mesh.setColorAt(i, tmpClr);
-    mesh.material.opacity = 0.5;
+    mesh.material.opacity = 1.0;
   }
 }
 
@@ -194,18 +215,20 @@ function updateFromModel(time) {
     tmpNrm.set(tmpMpt.nx, tmpMpt.ny, tmpMpt.nz);
     rotateTmpObjToNrm();
 
-    tmpObj.rotation.x = Math.PI * 0.25;
-    tmpObj.rotation.y = Math.PI * 0.25;
-
-    tmpObj.rotation.y =
-      Math.sin(tmpMpt.cx / 4 + time * 0.0005) +
-      Math.sin(tmpMpt.cy / 4 + time * 0.0005) +
-      Math.sin(tmpMpt.cz / 4 + time * 0.0005);
-    tmpObj.rotation.x = tmpObj.rotation.y * 0.5;
+    // tmpObj.rotation.x = Math.PI * 0.25;
+    // tmpObj.rotation.y = Math.PI * 0.25;
+    //
+    // tmpObj.rotation.y =
+    //   Math.sin(tmpMpt.cx / 4 + time * 0.0005) +
+    //   Math.sin(tmpMpt.cy / 4 + time * 0.0005) +
+    //   Math.sin(tmpMpt.cz / 4 + time * 0.0005);
+    // tmpObj.rotation.x = tmpObj.rotation.y * 0.5;
 
     if (pulseSize) {
       tmpObj.scale.y = 1 + Math.sin(time * 0.001) * 1;
     }
+    tmpObj.scale.y = 1 + hi / 256;
+    tmpObj.scale.x = tmpObj.scale.z = 1 + Math.sqrt(mid) / 16;
 
     tmpObj.updateMatrix();
     mesh.setMatrixAt(i, tmpObj.matrix);
@@ -217,13 +240,27 @@ function updateFromModel(time) {
 function animate() {
   requestAnimationFrame(animate);
 
+  const spectrum = updateFFT();
+  if (spectrum) [lo, mid, hi, vol] = spectrum;
+  else [lo, mid, hi, vol] = [0, 0, 0, 0];
+  const volPercent = (vol / 2048 * 100).toFixed(2);
+  elmVolumeVal.style.height = volPercent + "%";
+
   camRotSpeed.add(camRotAccel);
-  cameraGroup.rotation.y += camRotSpeed.y;
-  cameraGroup.rotation.x += camRotSpeed.x;
+  camPanSpeed.add(camPanAccel);
+  camAltitudeGroup.rotation.x += camRotSpeed.x;
+  camAzimuthGroup.rotation.y += camRotSpeed.y;
+  camPanGroup.position.x += camPanSpeed.x;
+  camPanGroup.position.y += camPanSpeed.y;
+  camPanGroup.position.z += camPanSpeed.z;
 
   camRotSpeed.multiplyScalar(0.985);
   if (Math.abs(camRotSpeed.y) < 0.0001) camRotSpeed.y = 0;
   if (Math.abs(camRotSpeed.x) < 0.0001) camRotSpeed.x = 0;
+  camPanSpeed.multiplyScalar(0.985);
+  if (Math.abs(camPanSpeed.y) < 0.0001) camPanSpeed.y = 0;
+  if (Math.abs(camPanSpeed.x) < 0.0001) camPanSpeed.x = 0;
+  if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
 
   const now = Date.now();
   if (live.opts.flowSim) updateSimulation(now - lastTime);
@@ -254,38 +291,46 @@ animate();
 window.addEventListener('resize', onWindowResize);
 
 document.body.addEventListener("keydown", e => {
-  if ((e.ctrlKey || e.metaKey)) {
-    if (e.key == "Enter") {
-      document.documentElement.requestFullscreen();
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
+    document.documentElement.requestFullscreen();
+    e.preventDefault();
+    e.stopPropagation();
   }
-  else {
-    if (e.key == "ArrowLeft") {
-      camRotAccel.y = 0.001;
-    }
-    else if (e.key == "ArrowRight") {
-      camRotAccel.y = -0.001;
-    }
-    else if (e.key == "ArrowUp") {
-      camRotAccel.x = 0.001;
-    }
-    else if (e.key == "ArrowDown") {
-      camRotAccel.x = -0.001;
-    }
+  else if (e.key == "a") {
+    connectAudioAPI(live.opts.gain);
+  }
+  else if (e.key == "c") {
+    renderer.clear();
+  }
+  else if (e.key == "p") {
+    preserveBuffer = !preserveBuffer;
+  }
+  else if (e.key == "m") {
+    if (elmVolume.style.display == "block") elmVolume.style.display = "none";
+    else elmVolume.style.display = "block";
+  }
+  else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+    if (e.key == "ArrowLeft") camRotAccel.y = -0.0005;
+    else if (e.key == "ArrowRight") camRotAccel.y = 0.0005;
+    else if (e.key == "ArrowUp") camRotAccel.x = -0.0005;
+    else if (e.key == "ArrowDown") camRotAccel.x = 0.0005;
+  }
+  else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.key == "ArrowLeft") camPanAccel.x = -0.01;
+    else if (e.key == "ArrowRight") camPanAccel.x = 0.01;
+    else if (e.key == "ArrowUp") camPanAccel.y = 0.01;
+    else if (e.key == "ArrowDown") camPanAccel.y = -0.01;
+  }
+  else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    if (e.key == "ArrowUp") camPanAccel.z = -0.01;
+    else if (e.key == "ArrowDown") camPanAccel.z = 0.01;
   }
 });
 
 document.body.addEventListener("keyup", e => {
-  if ((e.ctrlKey || e.metaKey)) {
-  }
-  else {
-    if (e.key == "ArrowLeft" || e.key == "ArrowRight") {
-      camRotAccel.y = 0;
-    }
-    else if (e.key == "ArrowUp" || e.key == "ArrowDown") {
-      camRotAccel.x = 0;
-    }
+  if (e.key == "ArrowLeft" || e.key == "ArrowRight" ||
+    e.key == "ArrowUp" || e.key == "ArrowDown") {
+    camRotAccel.set(0, 0, 0, 0);
+    camPanAccel.set(0, 0, 0);
   }
 });

@@ -1,8 +1,9 @@
 const opts = {
-  flowSim: true,
+  gain: 0.01,
+  flowSim: false,
   simFieldMul: 2.5,
-  simSpeed: 0.0005,
-  maxAge: 4000,
+  simSpeed: 0.001,
+  maxAge: 24000,
 };
 
 ///return {

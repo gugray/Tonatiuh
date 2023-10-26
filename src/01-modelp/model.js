@@ -1,3 +1,5 @@
+const maxPoints = 40920;
+
 export class ModelPoint {
   constructor() {
     // Model point coordinates
@@ -105,6 +107,15 @@ export class Model {
   }
 }
 
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = temp;
+  }
+}
+
 /**
  * @returns {Promise<Model>}
  */
@@ -114,16 +125,24 @@ export async function loadModelFromPLY(THREE, url, rot) {
   const ply = await resp.text();
   const lines = ply.split("\n");
 
-  const values = [];
+  // Shuffle points; keep only up to maxPoints
+  const filteredLines = [];
   let headerOver = false;
+  for (const ln of lines) {
+    if (ln == "end_header") { headerOver = true; continue; }
+    else if (!headerOver || ln == "") continue;
+    filteredLines.push(ln);
+  }
+  shuffle(filteredLines);
+  if (maxPoints !== undefined && filteredLines.length > maxPoints)
+    filteredLines.length = maxPoints;
+
+  const values = [];
   let xMin = Number.MAX_VALUE, xMax = Number.MIN_VALUE;
   let yMin = Number.MAX_VALUE, yMax = Number.MIN_VALUE;
   let zMin = Number.MAX_VALUE, zMax = Number.MIN_VALUE;
 
-  for (const ln of lines) {
-
-    if (ln == "end_header") { headerOver = true; continue; }
-    else if (!headerOver || ln == "") continue;
+  for (const ln of filteredLines) {
 
     const ptvals = parseLine(ln.trim());
     if (ptvals[0] < xMin) xMin = ptvals[0];
