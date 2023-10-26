@@ -1,6 +1,6 @@
 import {loadModelFromPLY, ModelPoint} from "./model.js";
 import {simplex3curl} from "./curl.js";
-import {connectAudioAPI, setGain, updateFFT} from "../fft.js";
+import {connectAudioAPI, setGain, updateFFT} from "./fft.js";
 import * as noise from "./noise.js";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
@@ -12,12 +12,16 @@ import {OutputPass} from "three/addons/postprocessing/OutputPass.js";
 import {RGBShiftShader} from "three/addons/shaders/RGBShiftShader.js";
 
 // TODO
-// -- Bring funs to live
-// -- Bring shadows to live
+// OK Bring funs to live
+// OK Bring shadows to live
 // -- Move lights? add spotlights? add bloom filter?
 // -- Add yellow BG lines?
 // OK Show volume
 // -- Move non-curl update into web worker too
+// -- Ease into new states
+// -- Neater transitions between simulation and model
+// -- Neater maxAge changes
+// -- Fade in+out in simulation, not appear/disappear
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
@@ -27,16 +31,32 @@ const mat = new THREE.Matrix4();
 mat.makeRotationY(Math.PI * 0.5);
 const model = await loadModelFromPLY(THREE, modelUrl, mat);
 
-const useEffectsComposer = false;
-let preserveBuffer = false;
-const pulseSize = false;
-const useShadow = false;
 const shadowMapSz = 4096;
 const shadowCamDim = 40;
 
+const ctrl = {
+  useEffectsComposer: false,
+  preserveBuffer: false,
+  pulseSize: false,
+  useShadow: false,
+  gain: 0.01,
+  flowSim: false,
+  simFieldMul: 2.5,
+  simSpeed: 0.001,
+  maxAge: 24000,
+};
+
 const startTime = Date.now();
-let lastTime = startTime;
-let [lo, mid, hi, vol] = [0, 0, 0, 0];
+const state = {
+  lastTime: startTime,
+  lo: 0,
+  mid: 0,
+  hi: 0,
+  vol: 0,
+}
+
+let dyn;
+
 const elmVolumeVal = document.getElementById("volumeVal");
 const elmVolume = document.getElementById("volume");
 
@@ -54,7 +74,9 @@ async function getLive() {
   if (str == liveStr) return;
   liveStr = str;
   live = Function(liveStr)();
-  setGain(live.opts.gain);
+  dyn = live.dyn;  
+  live.updateCtrl(ctrl);
+  setGain(ctrl.gain);
   updateUpdaters();
 }
 await getLive();
@@ -73,11 +95,11 @@ initUpdater(updater2, 2, 1);
 function updateUpdaters() {
   if (!updater1) return;
   const msg = {
-    running: live.opts.flowSim,
-    modelScale: live.opts.modelScale,
-    simFieldMul: live.opts.simFieldMul,
-    simSpeed: live.opts.simSpeed,
-    maxAge: live.opts.maxAge,
+    running: ctrl.flowSim,
+    modelScale: ctrl.modelScale,
+    simFieldMul: ctrl.simFieldMul,
+    simSpeed: ctrl.simSpeed,
+    maxAge: ctrl.maxAge,
   };
   updater1.postMessage(msg);
   updater2.postMessage(msg);
@@ -107,7 +129,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 // const controls = new OrbitControls(camera, renderer.domElement);
 
 let composer = null;
-if (useEffectsComposer) {
+if (ctrl.useEffectsComposer) {
   composer = new EffectComposer(renderer);
   const renderPass = new RenderPass(scene, camera);
   composer.addPass(renderPass);
@@ -118,7 +140,7 @@ if (useEffectsComposer) {
 function makeDirLight(x, y, z, intensity) {
   const light = new THREE.DirectionalLight(0xffffff, intensity);
   light.position.set(x, y, z);
-  if (useShadow) {
+  if (ctrl.useShadow) {
     light.castShadow = true;
     light.shadow.camera.top = shadowCamDim;
     light.shadow.camera.left = -shadowCamDim;
@@ -154,52 +176,54 @@ scene.add(mesh);
 const stats = new Stats();
 document.body.appendChild(stats.dom);
 
-const tmpObj = new THREE.Object3D();
-const tmpNrm = new THREE.Vector3();
-const tmpHor = new THREE.Vector3();
-const tmpUnitZ = new THREE.Vector3(0, 0, 1);
-const tmpUnitY = new THREE.Vector3(0, 1, 0);
-const tmpClr = new THREE.Color();
-const tmpMpt = new ModelPoint();
+const perm = {
+  obj: new THREE.Object3D(),
+  nrm: new THREE.Vector3(),
+  hor: new THREE.Vector3(),
+  unitZ: new THREE.Vector3(0, 0, 1),
+  unitY: new THREE.Vector3(0, 1, 0),
+  clr: new THREE.Color(),
+  mpt: new ModelPoint(),
+};
 
 model.putAllOnModel();
 for (let ix = 0; ix < model.count; ++ix)
-  model.setPointAge(ix, Math.floor(live.opts.maxAge * Math.random()));
+  model.setPointAge(ix, Math.floor(ctrl.maxAge * Math.random()));
 noise.seed(Math.random());
 updateFromModel(0);
 
 function rotateTmpObjToNrm() {
-  tmpObj.rotation.z = Math.atan2(tmpNrm.y, tmpNrm.x);
-  tmpHor.set(tmpNrm.x, tmpNrm.y, 0).normalize();
-  tmpObj.rotation.y = -Math.atan2(tmpHor.z, tmpHor.x);
-  tmpObj.rotation.x = -Math.atan2(tmpNrm.dot(tmpUnitZ), tmpNrm.dot(tmpNrm.clone().cross(tmpUnitZ)));
+  perm.obj.rotation.z = Math.atan2(perm.nrm.y, perm.nrm.x);
+  perm.hor.set(perm.nrm.x, perm.nrm.y, 0).normalize();
+  perm.obj.rotation.y = -Math.atan2(perm.hor.z, perm.hor.x);
+  perm.obj.rotation.x = -Math.atan2(perm.nrm.dot(perm.unitZ), perm.nrm.dot(perm.nrm.clone().cross(perm.unitZ)));
 }
 
 function rotateTmpObjToNrm2() {
-  const angle = tmpUnitY.angleTo(tmpNrm);
-  const axis = new THREE.Vector3().crossVectors(tmpUnitY, tmpNrm).normalize();
-  tmpObj.setRotationFromAxisAngle(axis, angle);
+  const angle = perm.unitY.angleTo(perm.nrm);
+  const axis = new THREE.Vector3().crossVectors(perm.unitY, perm.nrm).normalize();
+  perm.obj.setRotationFromAxisAngle(axis, angle);
 }
 
 function updateSimulation(dT) {
 
   for (let i = 0; i < model.count; ++i) {
 
-    model.getPoint(i, tmpMpt);
+    model.getPoint(i, perm.mpt);
 
     // Update instance's matrix and color
-    tmpObj.scale.set(1, 1, 1);
-    tmpObj.scale.y = 1 + hi / 256;
-    tmpObj.scale.x = tmpObj.scale.z = 1 + mid / 256;
+    perm.obj.scale.set(1, 1, 1);
+    perm.obj.scale.y = 1 + state.hi / 256;
+    perm.obj.scale.x = perm.obj.scale.z = 1 + state.mid / 256;
 
-    tmpObj.position.set(tmpMpt.cx * modelScale, tmpMpt.cy * modelScale, tmpMpt.cz * modelScale);
-    tmpNrm.set(tmpMpt.vx, tmpMpt.vy, tmpMpt.vz);
-    tmpNrm.normalize();
+    perm.obj.position.set(perm.mpt.cx * modelScale, perm.mpt.cy * modelScale, perm.mpt.cz * modelScale);
+    perm.nrm.set(perm.mpt.vx, perm.mpt.vy, perm.mpt.vz);
+    perm.nrm.normalize();
     rotateTmpObjToNrm2();
-    tmpObj.updateMatrix();
-    mesh.setMatrixAt(i, tmpObj.matrix);
-    tmpClr.set(tmpMpt.r / 64, tmpMpt.g / 64, tmpMpt.b / 64);
-    mesh.setColorAt(i, tmpClr);
+    perm.obj.updateMatrix();
+    mesh.setMatrixAt(i, perm.obj.matrix);
+    perm.clr.set(perm.mpt.r / 64, perm.mpt.g / 64, perm.mpt.b / 64);
+    mesh.setColorAt(i, perm.clr);
     mesh.material.opacity = 1.0;
   }
 }
@@ -209,31 +233,31 @@ function updateFromModel(time) {
   mesh.rotation.y = Math.sin(time * 0.0002) * 0.3;
 
   for (let i = 0; i < model.count; ++i) {
-    model.getPoint(i, tmpMpt);
-    tmpObj.position.set(tmpMpt.cx * modelScale, tmpMpt.cy * modelScale, tmpMpt.cz * modelScale);
+    model.getPoint(i, perm.mpt);
+    perm.obj.position.set(perm.mpt.cx * modelScale, perm.mpt.cy * modelScale, perm.mpt.cz * modelScale);
 
-    tmpNrm.set(tmpMpt.nx, tmpMpt.ny, tmpMpt.nz);
+    perm.nrm.set(perm.mpt.nx, perm.mpt.ny, perm.mpt.nz);
     rotateTmpObjToNrm();
 
-    // tmpObj.rotation.x = Math.PI * 0.25;
-    // tmpObj.rotation.y = Math.PI * 0.25;
+    // perm.obj.rotation.x = Math.PI * 0.25;
+    // perm.obj.rotation.y = Math.PI * 0.25;
     //
-    // tmpObj.rotation.y =
-    //   Math.sin(tmpMpt.cx / 4 + time * 0.0005) +
-    //   Math.sin(tmpMpt.cy / 4 + time * 0.0005) +
-    //   Math.sin(tmpMpt.cz / 4 + time * 0.0005);
-    // tmpObj.rotation.x = tmpObj.rotation.y * 0.5;
+    // perm.obj.rotation.y =
+    //   Math.sin(perm.mpt.cx / 4 + time * 0.0005) +
+    //   Math.sin(perm.mpt.cy / 4 + time * 0.0005) +
+    //   Math.sin(perm.mpt.cz / 4 + time * 0.0005);
+    // perm.obj.rotation.x = perm.obj.rotation.y * 0.5;
 
-    if (pulseSize) {
-      tmpObj.scale.y = 1 + Math.sin(time * 0.001) * 1;
+    if (ctrl.pulseSize) {
+      perm.obj.scale.y = 1 + Math.sin(time * 0.001) * 1;
     }
-    tmpObj.scale.y = 1 + hi / 256;
-    tmpObj.scale.x = tmpObj.scale.z = 1 + Math.sqrt(mid) / 16;
+    perm.obj.scale.y = 1 + state.hi / 256;
+    perm.obj.scale.x = perm.obj.scale.z = 1 + Math.sqrt(state.mid) / 16;
 
-    tmpObj.updateMatrix();
-    mesh.setMatrixAt(i, tmpObj.matrix);
-    tmpClr.set(tmpMpt.r / 64, tmpMpt.g / 64, tmpMpt.b / 64);
-    mesh.setColorAt(i, tmpClr);
+    perm.obj.updateMatrix();
+    mesh.setMatrixAt(i, perm.obj.matrix);
+    perm.clr.set(perm.mpt.r / 64, perm.mpt.g / 64, perm.mpt.b / 64);
+    mesh.setColorAt(i, perm.clr);
   }
 }
 
@@ -241,9 +265,9 @@ function animate() {
   requestAnimationFrame(animate);
 
   const spectrum = updateFFT();
-  if (spectrum) [lo, mid, hi, vol] = spectrum;
-  else [lo, mid, hi, vol] = [0, 0, 0, 0];
-  const volPercent = (vol / 2048 * 100).toFixed(2);
+  if (spectrum) [state.lo, state.mid, state.hi, state.vol] = spectrum;
+  else [state.lo, state.mid, state.hi, state.vol] = [0, 0, 0, 0];
+  const volPercent = (state.vol / 2048 * 100).toFixed(2);
   elmVolumeVal.style.height = volPercent + "%";
 
   camRotSpeed.add(camRotAccel);
@@ -263,15 +287,15 @@ function animate() {
   if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
 
   const now = Date.now();
-  if (live.opts.flowSim) updateSimulation(now - lastTime);
+  if (ctrl.flowSim) updateSimulation(now - state.lastTime);
   else updateFromModel(now - startTime);
   mesh.instanceMatrix.needsUpdate = true;
   mesh.computeBoundingSphere();
-  lastTime = now;
+  state.lastTime = now;
 
-  if (useEffectsComposer) composer.render();
+  if (ctrl.useEffectsComposer) composer.render();
   else {
-    if (preserveBuffer) renderer.clearDepth();
+    if (ctrl.preserveBuffer) renderer.clearDepth();
     else renderer.clear();
     renderer.render(scene, camera);
   }
@@ -297,13 +321,13 @@ document.body.addEventListener("keydown", e => {
     e.stopPropagation();
   }
   else if (e.key == "a") {
-    connectAudioAPI(live.opts.gain);
+    connectAudioAPI(ctrl.gain);
   }
   else if (e.key == "c") {
     renderer.clear();
   }
   else if (e.key == "p") {
-    preserveBuffer = !preserveBuffer;
+    ctrl.preserveBuffer = !ctrl.preserveBuffer;
   }
   else if (e.key == "m") {
     if (elmVolume.style.display == "block") elmVolume.style.display = "none";
