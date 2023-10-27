@@ -4,18 +4,18 @@ import {connectAudioAPI, setGain, updateFFT} from "./fft.js";
 import * as noise from "./noise.js";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
-import Stats from "three/addons/libs/stats.module.js";
+import Stats from "./mystats.js";
 import {EffectComposer} from "three/addons/postprocessing/EffectComposer.js";
 import {RenderPass} from "three/addons/postprocessing/RenderPass.js";
 import {BokehPass} from "three/addons/postprocessing/BokehPass.js";
 import {OutputPass} from "three/addons/postprocessing/OutputPass.js";
 import {RGBShiftShader} from "three/addons/shaders/RGBShiftShader.js";
 
-// TODO
+// TO-DO
 // OK Bring funs to live
 // OK Bring shadows to live
 // -- Move lights? add spotlights? add bloom filter?
-// -- Add yellow BG lines?
+// OK Add yellow BG lines?
 // OK Show volume
 // XX Move non-curl update into web worker too
 // -- Ease into new states
@@ -35,12 +35,14 @@ const shadowCamDim = 40;
 
 const ctrl = {
   modelScale: 36,
+  renderBG: true,
+  renderScene: true,
   useEffectsComposer: false,
   preserveBuffer: false,
   pulseSize: false,
   useShadow: false,
   gain: 0.01,
-  flowSim: false,
+  runSimulation: false,
   simFieldMul: 2.5,
   simSpeed: 0.001,
   maxAge: 24000,
@@ -50,9 +52,13 @@ const startTime = Date.now();
 let lastTime = startTime;
 
 const state = {
-  time: 0,
   dT: 0,
-  funnyTime: 0,
+  time: 0,
+  time1: 0,
+  time2: 0,
+  time3: 0,
+  time4: 0,
+  frameIx: 0,
   lo: 0,
   mid: 0,
   hi: 0,
@@ -61,8 +67,10 @@ const state = {
 
 let dyn;
 
+const elmFPS = document.getElementById("fps");
 const elmVolumeVal = document.getElementById("volumeVal");
 const elmVolume = document.getElementById("volume");
+const elmCanv2 = document.getElementById("canv2");
 
 const camRotAccel = new THREE.Vector4(); // x: altitude, y: azimuth
 const camRotSpeed = new THREE.Vector4(); // x: altitude, y: azimuth
@@ -101,7 +109,7 @@ initUpdater(updater2, 2, 1);
 function updateUpdaters() {
   if (!updater1) return;
   const msg = {
-    running: ctrl.flowSim,
+    running: ctrl.runSimulation,
     modelScale: ctrl.modelScale,
     simFieldMul: ctrl.simFieldMul,
     simSpeed: ctrl.simSpeed,
@@ -178,6 +186,7 @@ mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 scene.add(mesh);
 
 const stats = new Stats();
+stats.dom.style.display = "none";
 document.body.appendChild(stats.dom);
 
 const perm = {
@@ -186,47 +195,22 @@ const perm = {
   hor: new THREE.Vector3(),
   unitZ: new THREE.Vector3(0, 0, 1),
   unitY: new THREE.Vector3(0, 1, 0),
+  axis: new THREE.Vector3(),
   clr: new THREE.Color(),
   mpt: new ModelPoint(),
+  allColors: [],
 };
 
 model.putAllOnModel();
 for (let ix = 0; ix < model.count; ++ix)
   model.setPointAge(ix, Math.floor(ctrl.maxAge * Math.random()));
 noise.seed(Math.random());
-// updateFromModel(0);
-
-function rotateTmpObjToNrm2() {
-  const angle = perm.unitY.angleTo(perm.nrm);
-  const axis = new THREE.Vector3().crossVectors(perm.unitY, perm.nrm).normalize();
-  perm.obj.setRotationFromAxisAngle(axis, angle);
-}
-
-function updateSimulation(dT) {
-
-  for (let i = 0; i < model.count; ++i) {
-
-    model.getPoint(i, perm.mpt);
-
-    // Update instance's matrix and color
-    perm.obj.scale.set(1, 1, 1);
-    perm.obj.scale.y = 1 + state.hi / 256;
-    perm.obj.scale.x = perm.obj.scale.z = 1 + state.mid / 256;
-
-    perm.obj.position.set(perm.mpt.cx * ctrl.modelScale, perm.mpt.cy * ctrl.modelScale, perm.mpt.cz * ctrl.modelScale);
-    perm.nrm.set(perm.mpt.vx, perm.mpt.vy, perm.mpt.vz);
-    perm.nrm.normalize();
-    rotateTmpObjToNrm2();
-    perm.obj.updateMatrix();
-    mesh.setMatrixAt(i, perm.obj.matrix);
-    perm.clr.set(perm.mpt.r / 64, perm.mpt.g / 64, perm.mpt.b / 64);
-    mesh.setColorAt(i, perm.clr);
-    mesh.material.opacity = 1.0;
-  }
-}
+getAllColors();
 
 function animate() {
   requestAnimationFrame(animate);
+
+  if (ctrl.renderBG) dyn.renderBG(elmCanv2, perm, ctrl, state);
 
   const spectrum = updateFFT();
   if (spectrum) [state.lo, state.mid, state.hi, state.vol] = spectrum;
@@ -235,9 +219,9 @@ function animate() {
   elmVolumeVal.style.height = volPercent + "%";
 
   const now = Date.now();
-  state.time = now - startTime;
+  state.frameIx += 1;
   state.dT = now - lastTime;
-  state.funnyTime += state.dT + state.vol * 0.1;
+  state.time += state.dT;
   lastTime = now;
 
   camRotSpeed.add(camRotAccel);
@@ -256,20 +240,31 @@ function animate() {
   if (Math.abs(camPanSpeed.x) < 0.0001) camPanSpeed.x = 0;
   if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
 
-  if (ctrl.flowSim) updateSimulation(state.dT + state.vol);
-  else dyn.updateFromModel(perm, ctrl, state, model, mesh);
+  if (ctrl.renderScene) {
 
-  mesh.instanceMatrix.needsUpdate = true;
-  mesh.computeBoundingSphere();
+    dyn.updateInstances(perm, ctrl, state, model, mesh);
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
 
-  if (ctrl.useEffectsComposer) composer.render();
-  else {
-    if (ctrl.preserveBuffer) renderer.clearDepth();
-    else renderer.clear();
-    renderer.render(scene, camera);
+    if (ctrl.useEffectsComposer) composer.render();
+    else {
+      if (ctrl.preserveBuffer) renderer.clearDepth();
+      else renderer.clear();
+      renderer.render(scene, camera);
+    }
   }
+  // else if (renderer) renderer.clear();
 
   stats.update();
+  elmFPS.innerText = stats.fps();
+}
+
+function toggleMetrics() {
+  const elms = document.querySelectorAll(".metric");
+  if (elms.length == 0) return;
+  let newDisplay = "block";
+  if (elms[0].style.display == "block") newDisplay = "none";
+  elms.forEach(e => e.style.display = newDisplay);
 }
 
 function onWindowResize() {
@@ -277,8 +272,11 @@ function onWindowResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+  elmCanv2.width = window.innerWidth;
+  elmCanv2.height = window.innerHeight;
 }
 
+onWindowResize();
 animate();
 
 window.addEventListener('resize', onWindowResize);
@@ -299,8 +297,7 @@ document.body.addEventListener("keydown", e => {
     ctrl.preserveBuffer = !ctrl.preserveBuffer;
   }
   else if (e.key == "m") {
-    if (elmVolume.style.display == "block") elmVolume.style.display = "none";
-    else elmVolume.style.display = "block";
+    toggleMetrics();
   }
   else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
     if (e.key == "ArrowLeft") camRotAccel.y = -0.0005;
@@ -327,3 +324,11 @@ document.body.addEventListener("keyup", e => {
     camPanAccel.set(0, 0, 0);
   }
 });
+
+function getAllColors() {
+  for (let i = 0; i < model.count; ++i) {
+    model.getPoint(i, perm.mpt);
+    perm.clr.set(perm.mpt.r / 64, perm.mpt.g / 64, perm.mpt.b / 64);
+    perm.allColors.push("#" + perm.clr.getHexString());
+  }
+}

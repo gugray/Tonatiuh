@@ -42,6 +42,7 @@ body {
   font-family: var(--fntSans); font-size: var(--fntSizeBase);
   color: var(--clrText);
 }
+#canv2 { position: fixed; width: 100%; height: 100%; background-color: black; }
 #canv3 { position: fixed; width: 100%; height: 100%; background-color: transparent; }
 main { height: 100%; width: 100%; }
 
@@ -52,4 +53,8 @@ main { height: 100%; width: 100%; }
 #volumeVal {
   width: 100%; height: 70%; position: absolute; bottom: 0;
   background-color: #4d4238;
+}
+#fps {
+  position: fixed; right: 30px; bottom: 10px; display: none;
+  color: #81674c;
 }
