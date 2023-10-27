@@ -2,16 +2,31 @@ function updateCtrl(ctrl) {
   ctrl.renderBG = false;
   ctrl.bgLinesPerFrame = 0.1;
   ctrl.renderScene = true;
-  ctrl.useShadow = true;
+  ctrl.useShadow = false;
   ctrl.gain = 0.05;
-  ctrl.runSimulation = false;
-  ctrl.simFieldMul = 1.5;
-  ctrl.simSpeed = 0.001;
-  ctrl.maxAge = 1000;
-  ctrl.oneTimeReset = "model";
+  ctrl.runSimulation = true;
+  ctrl.simFieldMul = 2.5;
+  ctrl.simSpeed = 0.0005;
+  ctrl.maxAge = 10000;
+  // ctrl.oneTimeReset = "model";
 }
 
 const dyn = {
+
+  // ========================================================
+  // Gets position and intensity of point light
+  // Returns intensity; sets perm.pos
+  // ========================================================
+  getPointLight: function(ix, pos, perm, ctrl, state) {
+    pos.set(
+      20 * Math.sin(state.time * 0.0003),
+      0,
+      12 * Math.cos(state.time * 0.0003)
+    );
+    pos.y = 5;
+    // return 0;
+    return 10 + state.mid / 5;
+  },
 
   // ========================================================
   // Update boxes from current positions in model
@@ -19,14 +34,14 @@ const dyn = {
   updateInstances: function(perm, ctrl, state, model, mesh) {
 
     // const pointTo = "surface";
-    // const pointTo = "field";
-    const pointTo = "blah";
+    const pointTo = "field";
+    // const pointTo = "blah";
 
     const scaleThickness = false;
-    // const rotateAll = false;
-    const rotateAll = "swing";
+    const rotateAll = false;
+    // const rotateAll = "swing";
     // const rotateAll = "circle";
-    const pointTwirlie = true;
+    const pointTwirlie = false;
 
     if (rotateAll) {
       state.time1 += state.dT + (128 - state.vol * 0.5) * 0.0;

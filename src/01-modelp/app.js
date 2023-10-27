@@ -18,9 +18,9 @@ import {RGBShiftShader} from "three/addons/shaders/RGBShiftShader.js";
 // OK Add yellow BG lines?
 // OK Show volume
 // XX Move non-curl update into web worker too
-// -- Ease into new states
-// -- Neater transitions between simulation and model
-// -- Neater maxAge changes
+// OK Ease into new states
+// OK Neater transitions between simulation and model
+// OK Neater maxAge changes
 // -- Fade in+out in simulation, not appear/disappear
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
@@ -181,6 +181,10 @@ const dirLight2 = makeDirLight(0, 100, -10, 0.6);
 scene.add(dirLight2);
 // scene.add(new THREE.CameraHelper(dirLight2.shadow.camera));
 
+const pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
+scene.add(pointLight);
+
+
 const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
 const material = new THREE.MeshPhongMaterial({ transparent: true });
 
@@ -246,6 +250,9 @@ function animate() {
   if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
 
   if (ctrl.renderScene) {
+
+    const intensity = dyn.getPointLight(0, pointLight.position, perm, ctrl, state);
+    pointLight.intensity = intensity;
 
     dyn.updateInstances(perm, ctrl, state, model, mesh);
     mesh.instanceMatrix.needsUpdate = true;
