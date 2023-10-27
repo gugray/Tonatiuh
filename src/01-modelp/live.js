@@ -1,12 +1,14 @@
 function updateCtrl(ctrl) {
-  ctrl.renderBG = true;
+  ctrl.renderBG = false;
+  ctrl.bgLinesPerFrame = 0.1;
   ctrl.renderScene = true;
-  ctrl.useShadow = false;
+  ctrl.useShadow = true;
   ctrl.gain = 0.05;
-  ctrl.runSimulation = true;
-  ctrl.simFieldMul = 0.5;
+  ctrl.runSimulation = false;
+  ctrl.simFieldMul = 1.5;
   ctrl.simSpeed = 0.001;
-  ctrl.maxAge = 44000;
+  ctrl.maxAge = 1000;
+  ctrl.oneTimeReset = "model";
 }
 
 const dyn = {
@@ -21,12 +23,17 @@ const dyn = {
     const pointTo = "blah";
 
     const scaleThickness = false;
-    const rotateAll = true;
+    // const rotateAll = false;
+    const rotateAll = "swing";
+    // const rotateAll = "circle";
     const pointTwirlie = true;
 
     if (rotateAll) {
       state.time1 += state.dT + (128 - state.vol * 0.5) * 0.0;
-      mesh.rotation.y = Math.sin(state.time1 * 0.0002) * 0.3;
+      if (rotateAll == "swing")
+        mesh.rotation.y = Math.sin(state.time1 * 0.0002) * 0.3;
+      else if (rotateAll == "circle")
+        mesh.rotation.y = state.time1 * 0.0002 % (2 * Math.PI);
     }
     if (pointTwirlie) {
       state.time2 += state.dT;
@@ -41,9 +48,11 @@ const dyn = {
 
       // What about length?
       // Scale by audio
-      perm.obj.scale.y = 1 + state.hi / 256;
+      // perm.obj.scale.y = 1 + state.hi / 256;
       // Pulse
       // perm.obj.scale.y = 1 + Math.sin(state.time * 0.001) * 1.1;
+      // Something else
+      // perm.obj.scale.y = 0.15;
 
       if (scaleThickness) {
         perm.obj.scale.x = perm.obj.scale.z = 1 + state.mid / 256;
@@ -91,7 +100,7 @@ const dyn = {
   // Render 2D background
   // ========================================================
   renderBG: function(elmCanvas, perm, ctrl, state) {
-    const nPerFrame = 0.2;
+    const nPerFrame = ctrl.bgLinesPerFrame;
     const ctx = elmCanvas.getContext("2d");
     const w = elmCanvas.width;
     const h = elmCanvas.height;

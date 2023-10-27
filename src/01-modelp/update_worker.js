@@ -8,8 +8,8 @@ function updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAg
 
   model.getPoint(i, tmpMpt);
 
-  if (tmpMpt.age > maxAge) {
-    tmpMpt.age = 0;
+  if (tmpMpt.age > maxAge && Math.random() < 0.01) {
+    tmpMpt.age = Math.round((Math.random() - 0.5) * maxAge);
     tmpMpt.cx = tmpMpt.mx;
     tmpMpt.cy = tmpMpt.my;
     tmpMpt.cz = tmpMpt.mz;
@@ -44,9 +44,29 @@ onmessage = (e) => {
   if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
   if ("maxAge" in e.data) maxAge = e.data.maxAge;
   if ("running" in e.data) running = e.data.running;
+  if ("oneTimeReset" in e.data) reset(e.data.oneTimeReset);
 
   if (running) updateLoop();
 };
+
+function reset(kind) {
+  let updatePt;
+  if (kind == "model") {
+    updatePt = i => {
+      model.getPoint(i, tmpMpt);
+      tmpMpt.age = Math.round((Math.random() - 0.5) * maxAge);
+      tmpMpt.cx = tmpMpt.mx;
+      tmpMpt.cy = tmpMpt.my;
+      tmpMpt.cz = tmpMpt.mz;
+      model.updatePoint(i, tmpMpt.cx, tmpMpt.cy, tmpMpt.cz, tmpMpt.vx, tmpMpt.vy, tmpMpt.vz, tmpMpt.age);
+    }
+  }
+  else return;
+  for (let i = 0; i < model.count; ++i) {
+    if ((i % batchSz) != batchMod) continue;
+    updatePt(i);
+  }
+}
 
 function updateLoop() {
 

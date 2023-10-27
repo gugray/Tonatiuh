@@ -36,6 +36,7 @@ const shadowCamDim = 40;
 const ctrl = {
   modelScale: 36,
   renderBG: true,
+  bgLinesPerFrame: 0.2,
   renderScene: true,
   useEffectsComposer: false,
   preserveBuffer: false,
@@ -46,6 +47,7 @@ const ctrl = {
   simFieldMul: 2.5,
   simSpeed: 0.001,
   maxAge: 24000,
+  oneTimeReset: null,
 };
 
 const startTime = Date.now();
@@ -114,13 +116,16 @@ function updateUpdaters() {
     simFieldMul: ctrl.simFieldMul,
     simSpeed: ctrl.simSpeed,
     maxAge: ctrl.maxAge,
+    oneTimeReset: ctrl.oneTimeReset,
   };
   updater1.postMessage(msg);
   updater2.postMessage(msg);
+  ctrl.oneTimeReset = null;
 }
 updateUpdaters();
 
 const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000000, 0.015);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const camPanGroup = new THREE.Group();
 camPanGroup.position.z = 50;
