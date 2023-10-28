@@ -1,14 +1,14 @@
 function updateCtrl(ctrl) {
-  ctrl.renderBG = false;
-  ctrl.bgLinesPerFrame = 0.1;
+  ctrl.renderBG = true;
+  ctrl.bgLinesPerFrame = 0.4;
   ctrl.renderScene = true;
   ctrl.useShadow = false;
-  ctrl.gain = 0.05;
-  ctrl.runSimulation = true;
-  ctrl.simFieldMul = 2.5;
-  ctrl.simSpeed = 0.0005;
-  ctrl.maxAge = 10000;
-  // ctrl.oneTimeReset = "model";
+  ctrl.gain = 0.01;
+  ctrl.runSimulation = false;
+  ctrl.simFieldMul = 1.5;
+  ctrl.simSpeed = 0.0001;
+  ctrl.maxAge = 32;
+  ctrl.oneTimeResetet = "model";
 }
 
 const dyn = {
@@ -25,7 +25,7 @@ const dyn = {
     );
     pos.y = 5;
     // return 0;
-    return 10 + state.mid / 5;
+    return 50 + state.mid / 50;
   },
 
   // ========================================================
@@ -33,25 +33,27 @@ const dyn = {
   // ========================================================
   updateInstances: function(perm, ctrl, state, model, mesh) {
 
-    // const pointTo = "surface";
-    const pointTo = "field";
+    const pointTo = "surface";
+    // const pointTo = "field";
     // const pointTo = "blah";
 
-    const scaleThickness = false;
-    const rotateAll = false;
+    const scaleThickness = true;
+    // const rotateAll = false;
     // const rotateAll = "swing";
-    // const rotateAll = "circle";
-    const pointTwirlie = false;
+    const rotateAll = "circle";
+    const pointTwirlie = true;
 
     if (rotateAll) {
-      state.time1 += state.dT + (128 - state.vol * 0.5) * 0.0;
+      state.time1 += state.dT + (64 - state.hi * 0.5) * 0.0;
+      state.time1 = 0;
       if (rotateAll == "swing")
-        mesh.rotation.y = Math.sin(state.time1 * 0.0002) * 0.3;
+        mesh.rotation.y = Math.sin(state.time1 * 0.0003) * 0.3;
       else if (rotateAll == "circle")
         mesh.rotation.y = state.time1 * 0.0002 % (2 * Math.PI);
     }
     if (pointTwirlie) {
-      state.time2 += state.dT;
+      state.time2 += state.dT + state.hi * 0.0002;
+      // state.time2 += state.hi * 0.02;
     }
 
     for (let i = 0; i < model.count; ++i) {
@@ -63,14 +65,14 @@ const dyn = {
 
       // What about length?
       // Scale by audio
-      // perm.obj.scale.y = 1 + state.hi / 256;
+      perm.obj.scale.y = 1 + state.lo * 0.005;
       // Pulse
       // perm.obj.scale.y = 1 + Math.sin(state.time * 0.001) * 1.1;
       // Something else
       // perm.obj.scale.y = 0.15;
 
       if (scaleThickness) {
-        perm.obj.scale.x = perm.obj.scale.z = 1 + state.mid / 256;
+        perm.obj.scale.x = perm.obj.scale.z = 1 + state.mid * 0.0004;
       }
       else {
         perm.obj.scale.x = perm.obj.scale.z = 1;
