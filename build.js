@@ -46,7 +46,7 @@ async function build() {
   await contextLive.watch();
 
   // Cotext for main app
-  const entryPoints = ["index.html", "app.css", "app.js", "update_worker.js"];
+  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "update_worker.js"];
   for (let i = 0; i < entryPoints.length; ++i)
     entryPoints[i] = basePath + entryPoints[i];
   if (fs.existsSync(basePath + "data")) entryPoints.push(basePath + "data/*");

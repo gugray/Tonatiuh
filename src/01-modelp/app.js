@@ -1,6 +1,7 @@
 import {loadModelFromPLY, ModelPoint} from "./model.js";
 import {simplex3curl} from "./curl.js";
 import {connectAudioAPI, setGain, updateFFT} from "./fft.js";
+import {setupAudioLayer} from "./audioLayer.js";
 import * as noise from "./noise.js";
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
@@ -12,15 +13,6 @@ import {OutputPass} from "three/addons/postprocessing/OutputPass.js";
 import {RGBShiftShader} from "three/addons/shaders/RGBShiftShader.js";
 
 // TO-DO
-// OK Bring funs to live
-// OK Bring shadows to live
-// -- Move lights? add spotlights? add bloom filter?
-// OK Add yellow BG lines?
-// OK Show volume
-// XX Move non-curl update into web worker too
-// OK Ease into new states
-// OK Neater transitions between simulation and model
-// OK Neater maxAge changes
 // -- Fade in+out in simulation, not appear/disappear
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
@@ -97,6 +89,8 @@ async function getLive() {
 }
 await getLive();
 setInterval(async () => await getLive(), 100);
+
+setupAudioLayer();
 
 const updater1 = new Worker("update_worker.js");
 const updater2 = new Worker("update_worker.js");
