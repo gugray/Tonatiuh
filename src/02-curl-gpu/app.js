@@ -1,4 +1,4 @@
-import {loadModelFromPLY, ModelPoint} from "./model.js";
+import {loadModelFromPLY, ParticleData} from "./particleSystem.js";
 import {simplex3curl} from "./curl.js";
 import * as noise from "./noise.js";
 import * as THREE from "three";
@@ -8,7 +8,7 @@ const modelUrl = "data/tonatiuh-32k.ply";
 
 const mat = new THREE.Matrix4();
 mat.makeRotationY(Math.PI * 0.5);
-const model = await loadModelFromPLY(THREE, modelUrl, mat);
+const psys = await loadModelFromPLY(THREE, modelUrl, mat);
 
 const ctrl = {
   modelScale: 36,
@@ -26,16 +26,17 @@ const perm = {
   unitY: new THREE.Vector3(0, 1, 0),
   axis: new THREE.Vector3(),
   clr: new THREE.Color(),
-  mpt: new ModelPoint(),
+  prt: new ParticleData(),
 };
+
+const camRotAccel = new THREE.Vector4(); // x: altitude, y: azimuth
+const camRotSpeed = new THREE.Vector4(); // x: altitude, y: azimuth
+const camPanAccel = new THREE.Vector3(); // x, y: pan; z: distance
+const camPanSpeed = new THREE.Vector3(); // x, y: pan; z: distance
 
 const startTime = Date.now();
 let lastTime = startTime;
-
-const state = {
-  time: 0,
-};
-
+const state = { time: 0 };
 noise.seed(0.42);
 
 const updater1 = new Worker("update_worker.js");
@@ -43,7 +44,8 @@ const updater2 = new Worker("update_worker.js");
 function initUpdater(updater, batchSz, batchMod) {
   updater.postMessage({
     batchSz, batchMod,
-    array: model.array,
+    modelBuffer: psys.modelBuffer,
+    simBuffer: psys.simBuffer,
   });
 }
 initUpdater(updater1, 2, 0);
@@ -106,45 +108,45 @@ scene.add(pointLight);
 const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
 const material = new THREE.MeshPhongMaterial({ transparent: true });
 
-const mesh = new THREE.InstancedMesh(geometry, material, model.count);
+const mesh = new THREE.InstancedMesh(geometry, material, psys.count);
 mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 scene.add(mesh);
 
-model.putAllOnModel();
-for (let ix = 0; ix < model.count; ++ix) {
-  model.setPointAge(ix, Math.floor(ctrl.maxAge * Math.random()));
-  model.getPoint(ix, perm.mpt);
-  perm.clr.set(perm.mpt.r / 64, perm.mpt.g / 64, perm.mpt.b / 64);
+psys.putAllOnModel();
+for (let ix = 0; ix < psys.count; ++ix) {
+  psys.setParticleAge(ix, Math.floor(ctrl.maxAge * Math.random()));
+  psys.getParticle(ix, perm.prt);
+  perm.clr.set(perm.prt.r / 64, perm.prt.g / 64, perm.prt.b / 64);
 }
 
-function updateInstances(perm, ctrl, state, model, mesh) {
+function updateInstances(perm, ctrl, state, psys, mesh) {
 
   // const pointTo = "surface";
   const pointTo = "field";
 
-  for (let i = 0; i < model.count; ++i) {
+  for (let i = 0; i < psys.count; ++i) {
 
-    model.getPoint(i, perm.mpt);
+    psys.getParticle(i, perm.prt);
 
     perm.obj.scale.set(1, 1, 1);
     perm.obj.scale.x = perm.obj.scale.z = 1;
-    perm.obj.position.set(perm.mpt.cx * ctrl.modelScale, perm.mpt.cy * ctrl.modelScale, perm.mpt.cz * ctrl.modelScale);
+    perm.obj.position.set(perm.prt.cx * ctrl.modelScale, perm.prt.cy * ctrl.modelScale, perm.prt.cz * ctrl.modelScale);
 
     // Where should boxes point? Flow field, or surface normal
     if (pointTo == "surface") {
-      perm.nrm.set(perm.mpt.nx, perm.mpt.ny, perm.mpt.nz);
+      perm.nrm.set(perm.prt.nx, perm.prt.ny, perm.prt.nz);
       rotateTmpObjToNrm(perm);
     }
     // Flow field
     else if (pointTo == "field") {
-      perm.nrm.set(perm.mpt.vx, perm.mpt.vy, perm.mpt.vz);
+      perm.nrm.set(perm.prt.vx, perm.prt.vy, perm.prt.vz);
       perm.nrm.normalize();
       rotateTmpObjToNrm2(perm);
     }
 
     perm.obj.updateMatrix();
     mesh.setMatrixAt(i, perm.obj.matrix);
-    perm.clr.set(perm.mpt.r / 64, perm.mpt.g / 64, perm.mpt.b / 64);
+    perm.clr.set(perm.prt.r / 64, perm.prt.g / 64, perm.prt.b / 64);
     mesh.setColorAt(i, perm.clr);
     mesh.material.opacity = 1.0;
   }
@@ -166,9 +168,26 @@ function rotateTmpObjToNrm2(perm) {
 
 
 function animate() {
+
   const now = Date.now();
   state.time += (now - lastTime);
   lastTime = now;
+
+  camRotSpeed.add(camRotAccel);
+  camPanSpeed.add(camPanAccel);
+  camAltitudeGroup.rotation.x += camRotSpeed.x;
+  camAzimuthGroup.rotation.y += camRotSpeed.y;
+  camPanGroup.position.x += camPanSpeed.x;
+  camPanGroup.position.y += camPanSpeed.y;
+  camPanGroup.position.z += camPanSpeed.z;
+
+  camRotSpeed.multiplyScalar(0.985);
+  if (Math.abs(camRotSpeed.y) < 0.0001) camRotSpeed.y = 0;
+  if (Math.abs(camRotSpeed.x) < 0.0001) camRotSpeed.x = 0;
+  camPanSpeed.multiplyScalar(0.985);
+  if (Math.abs(camPanSpeed.y) < 0.0001) camPanSpeed.y = 0;
+  if (Math.abs(camPanSpeed.x) < 0.0001) camPanSpeed.x = 0;
+  if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
 
   pointLight.position.set(
     20 * Math.sin(state.time * 0.0003),
@@ -177,7 +196,7 @@ function animate() {
   );
   pointLight.intensity = 50;
 
-  updateInstances(perm, ctrl, state, model, mesh);
+  updateInstances(perm, ctrl, state, psys, mesh);
   mesh.instanceMatrix.needsUpdate = true;
   mesh.computeBoundingSphere();
 
@@ -200,5 +219,26 @@ window.addEventListener('resize', onWindowResize);
 
 document.body.addEventListener("keydown", e => {
   if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+    if (e.key == "ArrowLeft") camRotAccel.y = -0.0005;
+    else if (e.key == "ArrowRight") camRotAccel.y = 0.0005;
+    else if (e.key == "ArrowUp") camRotAccel.x = -0.0005;
+    else if (e.key == "ArrowDown") camRotAccel.x = 0.0005;
+  } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.key == "ArrowLeft") camPanAccel.x = 0.01;
+    else if (e.key == "ArrowRight") camPanAccel.x = -0.01;
+    else if (e.key == "ArrowUp") camPanAccel.y = -0.01;
+    else if (e.key == "ArrowDown") camPanAccel.y = 0.01;
+  } else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    if (e.key == "ArrowUp") camPanAccel.z = -0.01;
+    else if (e.key == "ArrowDown") camPanAccel.z = 0.01;
+  }
+});
+
+
+document.body.addEventListener("keyup", e => {
+  if (e.key == "ArrowLeft" || e.key == "ArrowRight" ||
+    e.key == "ArrowUp" || e.key == "ArrowDown") {
+    camRotAccel.set(0, 0, 0, 0);
+    camPanAccel.set(0, 0, 0);
   }
 });

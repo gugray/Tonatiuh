@@ -1,44 +1,46 @@
 import * as THREE from "three";
 import {simplex3curl} from "./curl.js";
-import {Model, ModelPoint} from "./model.js";
+import {ParticleSystem, ParticleData} from "./particleSystem.js";
 
-const tmpMpt = new ModelPoint();
+const prt = new ParticleData();
 
-function updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAge) {
+function updateParticle(psys, i, dT, modelScale, simSpeed, simFieldMul, maxAge) {
 
-  model.getPoint(i, tmpMpt);
+  psys.getParticle(i, prt);
 
-  let ageLimitRatio = tmpMpt.age / maxAge;
+  let ageLimitRatio = prt.age / maxAge;
   if (ageLimitRatio > Math.random() + 0.5) {
   // if (tmpMpt.age > maxAge && Math.random() < 0.0001) {
-    tmpMpt.age = Math.round((Math.random() - 0.5) * maxAge);
-    tmpMpt.cx = tmpMpt.mx;
-    tmpMpt.cy = tmpMpt.my;
-    tmpMpt.cz = tmpMpt.mz;
+    prt.age = Math.round((Math.random() - 0.5) * maxAge);
+    prt.cx = prt.mx;
+    prt.cy = prt.my;
+    prt.cz = prt.mz;
   }
 
-  let curl = simplex3curl(tmpMpt.cx * simFieldMul, tmpMpt.cy * simFieldMul, tmpMpt.cz * simFieldMul);
+  let curl = simplex3curl(prt.cx * simFieldMul, prt.cy * simFieldMul, prt.cz * simFieldMul);
   if (curl[0] != curl[0] || curl[1] != curl[1] || curl[2] != curl[2]) {
     // console.log(curl);
     curl = [0, 0, 0];
   }
-  tmpMpt.vx = simSpeed * curl[0];
-  tmpMpt.vy = simSpeed * curl[1];
-  tmpMpt.vz = simSpeed * curl[2];
-  tmpMpt.cx += tmpMpt.vx;
-  tmpMpt.cy += tmpMpt.vy;
-  tmpMpt.cz += tmpMpt.vz;
-  tmpMpt.age += dT;
-  model.updatePoint(i, tmpMpt.cx, tmpMpt.cy, tmpMpt.cz, tmpMpt.vx, tmpMpt.vy, tmpMpt.vz, tmpMpt.age);
+  prt.vx = simSpeed * curl[0];
+  prt.vy = simSpeed * curl[1];
+  prt.vz = simSpeed * curl[2];
+  prt.cx += prt.vx;
+  prt.cy += prt.vy;
+  prt.cz += prt.vz;
+  prt.age += dT;
+  psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.vx, prt.vy, prt.vz, prt.age);
 }
 
-let model, batchSz, batchMod;
+let psys, batchSz, batchMod;
 let modelScale, simFieldMul, simSpeed, maxAge;
 let running = false;
 let lastUpdateTime = null;
 
 onmessage = (e) => {
-  if (e.data.array) model = new Model(e.data.array);
+  if (e.data.modelBuffer) {
+    psys = new ParticleSystem(e.data.modelBuffer, e.data.simBuffer);
+  }
   if ("batchSz" in e.data) batchSz = e.data.batchSz;
   if ("batchMod" in e.data) batchMod = e.data.batchMod;
   if ("modelScale" in e.data) modelScale = e.data.modelScale;
@@ -55,16 +57,16 @@ function reset(kind) {
   let updatePt;
   if (kind == "model") {
     updatePt = i => {
-      model.getPoint(i, tmpMpt);
-      tmpMpt.age = Math.round((Math.random() - 0.5) * maxAge);
-      tmpMpt.cx = tmpMpt.mx;
-      tmpMpt.cy = tmpMpt.my;
-      tmpMpt.cz = tmpMpt.mz;
-      model.updatePoint(i, tmpMpt.cx, tmpMpt.cy, tmpMpt.cz, tmpMpt.vx, tmpMpt.vy, tmpMpt.vz, tmpMpt.age);
+      psys.getParticle(i, prt);
+      prt.age = Math.round((Math.random() - 0.5) * maxAge);
+      prt.cx = prt.mx;
+      prt.cy = prt.my;
+      prt.cz = prt.mz;
+      psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.vx, prt.vy, prt.vz, prt.age);
     }
   }
   else return;
-  for (let i = 0; i < model.count; ++i) {
+  for (let i = 0; i < psys.count; ++i) {
     if ((i % batchSz) != batchMod) continue;
     updatePt(i);
   }
@@ -79,9 +81,9 @@ function updateLoop() {
   if (lastUpdateTime != null) dT = now - lastUpdateTime;
   lastUpdateTime = now;
 
-  for (let i = 0; i < model.count; ++i) {
+  for (let i = 0; i < psys.count; ++i) {
     if ((i % batchSz) != batchMod) continue;
-    updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAge);
+    updateParticle(psys, i, dT, modelScale, simSpeed, simFieldMul, maxAge);
   }
 
   setTimeout(updateLoop, 0);

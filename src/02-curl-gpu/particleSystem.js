@@ -1,6 +1,6 @@
-const maxPoints = 40920;
+const maxParticles = 40920;
 
-export class ModelPoint {
+export class ParticleData {
   constructor() {
     // Model point coordinates
     this.mx = 0;
@@ -27,82 +27,87 @@ export class ModelPoint {
   }
 }
 
-export class Model {
-  constructor(val) {
+export class ParticleSystem {
+  constructor(val1, val2) {
     // Array of model values, provided by loadModelFromPLY, 9 values per point
-    if (Array.isArray(val)) {
-      const modelValues = val;
+    // In this case val2 is undefined
+    if (Array.isArray(val1)) {
+      const modelValues = val1;
       this.count = modelValues.length / 9;
-      this.array = new SharedArrayBuffer(this.count * 16 * 4);
-      this.data = new Float32Array(this.array);
-      for (let ix = 0; ix < this.count; ++ix) {
-        const ofsValues = ix * 9;
-        const ofsData = ix * 16;
-        for (let j = 0; j < 9; ++j)
-          this.data[ofsData + j] = modelValues[ofsValues + j];
-      }
+      // 9 values per point from model
+      this.modelBuffer = new SharedArrayBuffer(this.count * 9 * 4);
+      this.modelArray = new Float32Array(this.modelBuffer);
+      for (let i = 0; i < this.modelArray.length; ++i)
+        this.modelArray[i] = modelValues[i];
+      // 7 values per point in simulation
+      this.simBuffer = new SharedArrayBuffer(this.count * 7 * 4);
+      this.simArray = new Float32Array(this.simBuffer);
     }
-    // Existing SharedArrayBuffer of a model
+    // Existing SharedArrayBuffers of a model
     else {
-      this.array = val;
-      this.count = this.array.byteLength / 16 / 4;
-      this.data = new Float32Array(this.array);
+      this.modelBuffer = val1;
+      this.simBuffer = val2;
+      this.modelArray = new Float32Array(this.modelBuffer);
+      this.simArray = new Float32Array(this.simBuffer);
+      this.count = this.modelArray.length / 9;
     }
   }
   /**
    * @param {number} ix Index of point to retrieve
-   * @param {ModelPoint} mp ModelPoint instance that will receive values
+   * @param {ParticleData} mp ModelPoint instance that will receive values
    */
-  getPoint(ix, mp) {
-    const ofs = ix * 16;
-    mp.mx = this.data[ofs];
-    mp.my = this.data[ofs + 1];
-    mp.mz = this.data[ofs + 2];
-    mp.r = this.data[ofs + 3];
-    mp.g = this.data[ofs + 4];
-    mp.b = this.data[ofs + 5];
-    mp.nx = this.data[ofs + 6];
-    mp.ny = this.data[ofs + 7];
-    mp.nz = this.data[ofs + 8];
-    mp.cx = this.data[ofs + 9];
-    mp.cy = this.data[ofs + 10];
-    mp.cz = this.data[ofs + 11];
-    mp.vx = this.data[ofs + 12];
-    mp.vy = this.data[ofs + 13];
-    mp.vz = this.data[ofs + 14];
-    mp.age = this.data[ofs + 15];
+  getParticle(ix, mp) {
+    const mofs = ix * 9;
+    const sofs = ix * 7;
+    mp.mx = this.modelArray[mofs];
+    mp.my = this.modelArray[mofs + 1];
+    mp.mz = this.modelArray[mofs + 2];
+    mp.r = this.modelArray[mofs + 3];
+    mp.g = this.modelArray[mofs + 4];
+    mp.b = this.modelArray[mofs + 5];
+    mp.nx = this.modelArray[mofs + 6];
+    mp.ny = this.modelArray[mofs + 7];
+    mp.nz = this.modelArray[mofs + 8];
+    mp.cx = this.simArray[sofs];
+    mp.cy = this.simArray[sofs + 1];
+    mp.cz = this.simArray[sofs + 2];
+    mp.vx = this.simArray[sofs + 3];
+    mp.vy = this.simArray[sofs + 4];
+    mp.vz = this.simArray[sofs + 5];
+    mp.age = this.simArray[sofs + 6];
   }
 
-  updatePoint(ix, cx, cy, cz, vx, vy, vz, age) {
-    const ofs = ix * 16;
-    this.data[ofs + 9] = cx;
-    this.data[ofs + 10] = cy;
-    this.data[ofs + 11] = cz;
-    this.data[ofs + 12] = vx;
-    this.data[ofs + 13] = vy;
-    this.data[ofs + 14] = vz;
-    this.data[ofs + 15] = age;
+  updateParticle(ix, cx, cy, cz, vx, vy, vz, age) {
+    const ofs = ix * 7;
+    this.simArray[ofs] = cx;
+    this.simArray[ofs + 1] = cy;
+    this.simArray[ofs + 2] = cz;
+    this.simArray[ofs + 3] = vx;
+    this.simArray[ofs + 4] = vy;
+    this.simArray[ofs + 5] = vz;
+    this.simArray[ofs + 6] = age;
   }
 
-  setPointAge(ix, age) {
-    this.data[ix * 16 + 15] = age;
+  setParticleAge(ix, age) {
+    this.simArray[ix * 7 + 6] = age;
   }
 
   putAllOnModel() {
     for (let ix = 0; ix < this.count; ++ix) {
-      const ofs = ix * 16;
-      this.data[ofs + 9] = this.data[ofs];
-      this.data[ofs + 10] = this.data[ofs + 1];
-      this.data[ofs + 11] = this.data[ofs + 2];
+      const mofs = ix * 9;
+      const sofs = ix * 7;
+      this.simArray[sofs] = this.modelArray[mofs];
+      this.simArray[sofs + 1] = this.modelArray[mofs + 1];
+      this.simArray[sofs + 2] = this.modelArray[mofs + 2];
     }
   }
 
   scatterAll() {
     for (let ix = 0; ix < this.count; ++ix) {
-      const ofs = ix * 16;
-      this.data[ofs + 9] =  Math.random() - 0.5;
-      this.data[ofs + 10] = Math.random() - 0.5;
-      this.data[ofs + 11] = Math.random() - 0.5;
+      const sofs = ix * 7;
+      this.simArray[sofs] =  Math.random() - 0.5;
+      this.simArray[sofs + 1] = Math.random() - 0.5;
+      this.simArray[sofs + 2] = Math.random() - 0.5;
     }
   }
 }
@@ -117,7 +122,7 @@ function shuffle(arr) {
 }
 
 /**
- * @returns {Promise<Model>}
+ * @returns {Promise<ParticleSystem>}
  */
 export async function loadModelFromPLY(THREE, url, rot) {
 
@@ -125,7 +130,7 @@ export async function loadModelFromPLY(THREE, url, rot) {
   const ply = await resp.text();
   const lines = ply.split("\n");
 
-  // Shuffle points; keep only up to maxPoints
+  // Shuffle points; keep only up to maxParticles
   const filteredLines = [];
   let headerOver = false;
   for (const ln of lines) {
@@ -134,8 +139,8 @@ export async function loadModelFromPLY(THREE, url, rot) {
     filteredLines.push(ln);
   }
   shuffle(filteredLines);
-  if (maxPoints !== undefined && filteredLines.length > maxPoints)
-    filteredLines.length = maxPoints;
+  if (maxParticles !== undefined && filteredLines.length > maxParticles)
+    filteredLines.length = maxParticles;
 
   const values = [];
   let xMin = Number.MAX_VALUE, xMax = Number.MIN_VALUE;
@@ -163,7 +168,7 @@ export async function loadModelFromPLY(THREE, url, rot) {
 
   if (rot) rotate(THREE, values, rot);
 
-  return new Model(values);
+  return new ParticleSystem(values);
 }
 
 function rotate(THREE, values, rot) {
