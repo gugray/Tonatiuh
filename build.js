@@ -48,7 +48,7 @@ async function build() {
   }
 
   // Cotext for main app
-  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "update_worker.js"];
+  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "updateWorker.js"];
   for (let i = 0; i < entryPoints.length; ++i)
     entryPoints[i] = basePath + entryPoints[i];
   if (fs.existsSync(basePath + "data")) entryPoints.push(basePath + "data/*");

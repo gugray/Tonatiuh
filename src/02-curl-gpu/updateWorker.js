@@ -2,6 +2,10 @@ import * as THREE from "three";
 import {simplex3curl} from "./curl.js";
 import {ParticleSystem, ParticleData} from "./particleSystem.js";
 
+let psys;
+let modelScale, simFieldMul, simSpeed, maxAge;
+let running = false;
+let lastUpdateTime = null;
 const prt = new ParticleData();
 
 function updateParticle(psys, i, dT, modelScale, simSpeed, simFieldMul, maxAge) {
@@ -32,17 +36,10 @@ function updateParticle(psys, i, dT, modelScale, simSpeed, simFieldMul, maxAge) 
   psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.vx, prt.vy, prt.vz, prt.age);
 }
 
-let psys, batchSz, batchMod;
-let modelScale, simFieldMul, simSpeed, maxAge;
-let running = false;
-let lastUpdateTime = null;
-
 onmessage = (e) => {
   if (e.data.modelBuffer) {
     psys = new ParticleSystem(e.data.modelBuffer, e.data.simBuffer);
   }
-  if ("batchSz" in e.data) batchSz = e.data.batchSz;
-  if ("batchMod" in e.data) batchMod = e.data.batchMod;
   if ("modelScale" in e.data) modelScale = e.data.modelScale;
   if ("simFieldMul" in e.data) simFieldMul = e.data.simFieldMul;
   if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
@@ -67,7 +64,6 @@ function reset(kind) {
   }
   else return;
   for (let i = 0; i < psys.count; ++i) {
-    if ((i % batchSz) != batchMod) continue;
     updatePt(i);
   }
 }
@@ -82,7 +78,6 @@ function updateLoop() {
   lastUpdateTime = now;
 
   for (let i = 0; i < psys.count; ++i) {
-    if ((i % batchSz) != batchMod) continue;
     updateParticle(psys, i, dT, modelScale, simSpeed, simFieldMul, maxAge);
   }
 

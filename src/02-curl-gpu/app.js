@@ -39,30 +39,16 @@ let lastTime = startTime;
 const state = { time: 0 };
 noise.seed(0.42);
 
-const updater1 = new Worker("update_worker.js");
-const updater2 = new Worker("update_worker.js");
-function initUpdater(updater, batchSz, batchMod) {
-  updater.postMessage({
-    batchSz, batchMod,
-    modelBuffer: psys.modelBuffer,
-    simBuffer: psys.simBuffer,
-  });
-}
-initUpdater(updater1, 2, 0);
-initUpdater(updater2, 2, 1);
-function updateUpdaters() {
-  if (!updater1) return;
-  const msg = {
-    running: true,
-    modelScale: ctrl.modelScale,
-    simFieldMul: ctrl.simFieldMul,
-    simSpeed: ctrl.simSpeed,
-    maxAge: ctrl.maxAge,
-  };
-  updater1.postMessage(msg);
-  updater2.postMessage(msg);
-}
-updateUpdaters();
+const updater = new Worker("updateWorker.js");
+updater.postMessage({
+  modelBuffer: psys.modelBuffer,
+  simBuffer: psys.simBuffer,
+  running: true,
+  modelScale: ctrl.modelScale,
+  simFieldMul: ctrl.simFieldMul,
+  simSpeed: ctrl.simSpeed,
+  maxAge: ctrl.maxAge,
+});
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000000, 0.015);
