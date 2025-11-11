@@ -8,7 +8,9 @@ function updateModelPoint(model, i, dT, modelScale, simSpeed, simFieldMul, maxAg
 
   model.getPoint(i, tmpMpt);
 
-  if (tmpMpt.age > maxAge && Math.random() < 0.01) {
+  let ageLimitRatio = tmpMpt.age / maxAge;
+  if (ageLimitRatio > Math.random() + 0.5) {
+  // if (tmpMpt.age > maxAge && Math.random() < 0.0001) {
     tmpMpt.age = Math.round((Math.random() - 0.5) * maxAge);
     tmpMpt.cx = tmpMpt.mx;
     tmpMpt.cy = tmpMpt.my;

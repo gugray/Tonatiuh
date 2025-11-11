@@ -61,18 +61,20 @@ main { height: 100%; width: 100%; }
 
 #fixedCode {
   position: absolute; top: 50px; left: 50px; bottom: 50px; overflow-y: hidden;
-  font-size: 120%;
+  font-size: 90%;
   & p {
+    position: relative; float: left; clear: both;
+    /*border: 1px solid red;*/
     margin: 0 0 12px 0; padding: 8px 12px;
     font-family: monospace; white-space: pre-wrap;
     background-color: #00000080;
-    opacity: 0.5; &.last { opacity: 1; }
+    opacity: 0.3; &.last { opacity: .7; }
     transition: background-color 0.7s ease-out;
     &.hilite { background-color: #7399a780; transition: none; }
   }
 }
 .audioCode {
-  & .token.comment { color: #878d86; font-style: normal; }
+  & .token.comment { color: #acb4ab; font-style: normal; }
   & .token.string { color: #90ab87; }
   & .token.punctuation { color: #9c978f; }
   & .token.number { color: #b5a2ac; }

@@ -1,14 +1,33 @@
 function updateCtrl(ctrl) {
-  ctrl.renderBG = true;
-  ctrl.bgLinesPerFrame = 0.4;
+  ctrl.renderBG = false;
+  ctrl.bgLinesPerFrame = 0.08;
   ctrl.renderScene = true;
   ctrl.useShadow = false;
-  ctrl.gain = 0.01;
+  ctrl.gain = 0.04;
   ctrl.runSimulation = false;
-  ctrl.simFieldMul = 1.5;
-  ctrl.simSpeed = 0.0001;
-  ctrl.maxAge = 32;
-  ctrl.oneTimeResetet = "model";
+  // .3: just a flowing blob
+  // .6: calm
+  // .9: varied
+  ctrl.simFieldMul = .9;
+  // ===========
+  ctrl.simSpeed = 0.0002;
+  ctrl.maxAge = 15000;
+  // ===========
+  // ----------------
+  // Start with calm field, keep resetting
+  // ctrl.simSpeed = 0.0003;
+  // ctrl.maxAge = 15000;
+  // ----------------
+  // Slowish moving: 0.0002
+  // maAge 5: no movement
+  // Switch surface/field orientation at 1500
+  // ctrl.simSpeed = 0.0002;
+  // ctrl.maxAge = 1500;
+  // ----------------
+  // Slow moving: 0.0001, goes far
+  // ctrl.simSpeed = 0.0001;
+  // ctrl.maxAge = 140000;
+  ctrl.oneTimeReset = "modell";
 }
 
 const dyn = {
@@ -35,25 +54,30 @@ const dyn = {
 
     const pointTo = "surface";
     // const pointTo = "field";
-    // const pointTo = "blah";
 
-    const scaleThickness = true;
-    // const rotateAll = false;
-    // const rotateAll = "swing";
-    const rotateAll = "circle";
-    const pointTwirlie = true;
+    let scaleThickness = false;
+    // scaleThickness = true;
+
+
+    let rotateAll = false;
+    // rotateAll = "swing";
+    // rotateAll = "circle";
+
+    let pointTwirlie = false;
+    pointTwirlie = true;
+    if (pointTwirlie) {
+      // state.time2 += state.dT * 0.5;
+      state.time2 += state.dT * 0.1 + state.vol * 0.02;
+      // state.time2 += state.vol * 0.01;
+    }
 
     if (rotateAll) {
-      state.time1 += state.dT + (64 - state.hi * 0.5) * 0.0;
-      state.time1 = 0;
+      // state.time1 += state.dT + (64 - state.hi * 3.5) * 0.0;
+      state.time1 += state.dT;
       if (rotateAll == "swing")
         mesh.rotation.y = Math.sin(state.time1 * 0.0003) * 0.3;
       else if (rotateAll == "circle")
         mesh.rotation.y = state.time1 * 0.0002 % (2 * Math.PI);
-    }
-    if (pointTwirlie) {
-      state.time2 += state.dT + state.hi * 0.0002;
-      // state.time2 += state.hi * 0.02;
     }
 
     for (let i = 0; i < model.count; ++i) {
@@ -69,14 +93,12 @@ const dyn = {
       // Pulse
       // perm.obj.scale.y = 1 + Math.sin(state.time * 0.001) * 1.1;
       // Something else
-      // perm.obj.scale.y = 0.15;
+      perm.obj.scale.y = 1.2;
 
-      if (scaleThickness) {
-        perm.obj.scale.x = perm.obj.scale.z = 1 + state.mid * 0.0004;
-      }
-      else {
+      if (scaleThickness)
+        perm.obj.scale.x = perm.obj.scale.z = .8 + state.vol * 0.002;
+      else
         perm.obj.scale.x = perm.obj.scale.z = 1;
-      }
 
       perm.obj.position.set(perm.mpt.cx * ctrl.modelScale, perm.mpt.cy * ctrl.modelScale, perm.mpt.cz * ctrl.modelScale);
 
@@ -111,6 +133,15 @@ const dyn = {
       mesh.setColorAt(i, perm.clr);
       mesh.material.opacity = 1.0;
     }
+  },
+
+  clearBG: function(elmCanvas) {
+    const ctx = elmCanvas.getContext("2d");
+    const w = elmCanvas.width;
+    const h = elmCanvas.height;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, w, h);
   },
 
   // ========================================================

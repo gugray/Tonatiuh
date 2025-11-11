@@ -84,7 +84,7 @@ function onAudioUpdate(codeStr) {
   setTimeout(() => {
     const h = elmFixedCode.clientHeight;
     const bot = elm.offsetTop + elm.offsetHeight;
-    if (bot > h) {
+    if (id == "dX" || bot > h) {
       elmFixedCode.prepend(elm);
     }
     elm.classList.add("hilite");

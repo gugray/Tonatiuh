@@ -214,6 +214,7 @@ function animate() {
   requestAnimationFrame(animate);
 
   if (ctrl.renderBG) dyn.renderBG(elmCanv2, perm, ctrl, state);
+  else dyn.clearBG(elmCanv2);
 
   const spectrum = updateFFT();
   if (spectrum) [state.lo, state.mid, state.hi, state.vol] = spectrum;
@@ -312,10 +313,10 @@ document.body.addEventListener("keydown", e => {
     else if (e.key == "ArrowDown") camRotAccel.x = 0.0005;
   }
   else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (e.key == "ArrowLeft") camPanAccel.x = -0.01;
-    else if (e.key == "ArrowRight") camPanAccel.x = 0.01;
-    else if (e.key == "ArrowUp") camPanAccel.y = 0.01;
-    else if (e.key == "ArrowDown") camPanAccel.y = -0.01;
+    if (e.key == "ArrowLeft") camPanAccel.x = 0.01;
+    else if (e.key == "ArrowRight") camPanAccel.x = -0.01;
+    else if (e.key == "ArrowUp") camPanAccel.y = -0.01;
+    else if (e.key == "ArrowDown") camPanAccel.y = 0.01;
   }
   else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     if (e.key == "ArrowUp") camPanAccel.z = -0.01;
