@@ -1,6 +1,7 @@
 import * as esbuild from "esbuild"
 import * as fs from "fs";
 import http from 'node:http';
+import glsl from "./glsl-plugin.js"
 import { livereloadPlugin } from "@jgoz/esbuild-plugin-livereload";
 
 const timestamp = (+new Date).toString(36);
@@ -48,13 +49,11 @@ async function build() {
   }
 
   // Cotext for main app
-  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "updateWorker.js"];
+  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "gpuUpdateWorker.js"];
   for (let i = 0; i < entryPoints.length; ++i)
     entryPoints[i] = basePath + entryPoints[i];
   if (fs.existsSync(basePath + "data")) entryPoints.push(basePath + "data/*");
-  const plugins = [livereloadPlugin()];
   const context = await esbuild.context({
-    //external: ["three"],
     entryPoints: entryPoints,
     outdir: "public",
     bundle: true,
@@ -68,7 +67,7 @@ async function build() {
     },
     write: true,
     metafile: true,
-    plugins: plugins,
+    plugins: [livereloadPlugin(), glsl()],
   });
 
   await context.watch();

@@ -13,7 +13,7 @@ const psys = await loadModelFromPLY(THREE, modelUrl, mat);
 const ctrl = {
   modelScale: 36,
   preserveBuffer: false,
-  simFieldMul: 2.5,
+  simFieldMul: 2.5, // 2.5 for original
   simSpeed: 0.001,
   maxAge: 24000,
 };
@@ -39,16 +39,17 @@ let lastTime = startTime;
 const state = { time: 0 };
 noise.seed(0.42);
 
-const updater = new Worker("updateWorker.js");
+const simCanvas = document.createElement("canvas").transferControlToOffscreen();
+
+const updater = new Worker("gpuUpdateWorker.js");
 updater.postMessage({
+  simCanvas: simCanvas,
   modelBuffer: psys.modelBuffer,
   simBuffer: psys.simBuffer,
-  running: true,
-  modelScale: ctrl.modelScale,
   simFieldMul: ctrl.simFieldMul,
   simSpeed: ctrl.simSpeed,
   maxAge: ctrl.maxAge,
-});
+}, [simCanvas]);
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000000, 0.015);
@@ -128,6 +129,7 @@ function updateInstances(perm, ctrl, state, psys, mesh) {
       perm.nrm.set(perm.prt.vx, perm.prt.vy, perm.prt.vz);
       perm.nrm.normalize();
       rotateTmpObjToNrm2(perm);
+      // rotateTmpObjToNrm(perm);
     }
 
     perm.obj.updateMatrix();

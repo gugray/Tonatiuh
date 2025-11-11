@@ -172,14 +172,27 @@ export async function loadModelFromPLY(THREE, url, rot) {
 }
 
 function rotate(THREE, values, rot) {
+
   const vec = new THREE.Vector3();
   const nItems = values.length / 9;
+
   for (let ix = 0; ix < nItems; ++ix) {
+
+    // Rotate position
     vec.set(values[ix*9], values[ix*9+1], values[ix*9+2]);
     vec.applyMatrix4(rot);
     values[ix*9] = vec.x;
     values[ix*9+1] = vec.y;
     values[ix*9+2] = vec.z;
+
+    // Rotate normal
+    // This was not done in original sketch lol
+    // Made for an interesting outcome - revisit?
+    vec.set(values[ix*9+6], values[ix*9+7], values[ix*9+8]);
+    vec.applyMatrix4(rot);
+    values[ix*9+6] = vec.x;
+    values[ix*9+7] = vec.y;
+    values[ix*9+8] = vec.z;
   }
 }
 

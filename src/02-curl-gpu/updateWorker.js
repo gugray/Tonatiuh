@@ -21,11 +21,12 @@ function updateParticle(psys, i, dT, modelScale, simSpeed, simFieldMul, maxAge) 
     prt.cz = prt.mz;
   }
 
-  let curl = simplex3curl(prt.cx * simFieldMul, prt.cy * simFieldMul, prt.cz * simFieldMul);
-  if (curl[0] != curl[0] || curl[1] != curl[1] || curl[2] != curl[2]) {
-    // console.log(curl);
-    curl = [0, 0, 0];
-  }
+  // let curl = simplex3curl(prt.cx * simFieldMul, prt.cy * simFieldMul, prt.cz * simFieldMul);
+  // if (curl[0] != curl[0] || curl[1] != curl[1] || curl[2] != curl[2]) curl = [0, 0, 0];
+
+  // DBG: Just fly away along model surface normal
+  let curl = [prt.nx, prt.ny, prt.nz];
+
   prt.vx = simSpeed * curl[0];
   prt.vy = simSpeed * curl[1];
   prt.vz = simSpeed * curl[2];
