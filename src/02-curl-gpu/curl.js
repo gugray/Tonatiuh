@@ -49,6 +49,7 @@ export function simplex3curl(x, y, z){
   let noiseGrad0 = [a, b, c];
 
   // Offset position for second noise read
+  // TODO: Can play with this offset
   x += 10000.5;
   y += 10000.5;
   z += 10000.5;
@@ -73,9 +74,7 @@ export function simplex3curl(x, y, z){
 
   let noiseGrad1 = [a, b, c];
 
-  // ERROR! First should be noiseGrad0
-  // TODO
-  noiseGrad1 = normalize(noiseGrad1);
+  noiseGrad0 = normalize(noiseGrad0);
   noiseGrad1 = normalize(noiseGrad1);
   let curl = cross(noiseGrad0, noiseGrad1);
 
