@@ -38,12 +38,14 @@ async function build() {
   // });
 
   // Context for "live.js" part
-  const contextLive = await esbuild.context({
-    entryPoints: [`${basePath}live.js`],
-    outdir: "public",
-    loader: { ".js": "copy" },
-  });
-  await contextLive.watch();
+  if (fs.existsSync(`${basePath}live.js`)) {
+    const contextLive = await esbuild.context({
+      entryPoints: [`${basePath}live.js`],
+      outdir: "public",
+      loader: {".js": "copy"},
+    });
+    await contextLive.watch();
+  }
 
   // Cotext for main app
   const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "update_worker.js"];
