@@ -1,6 +1,4 @@
 import {loadModelFromPLY, ParticleData} from "./particleSystem.js";
-import {simplex3curl} from "./curl.js";
-import * as noise from "./noise.js";
 import * as THREE from "three";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
@@ -37,11 +35,10 @@ const camPanSpeed = new THREE.Vector3(); // x, y: pan; z: distance
 const startTime = Date.now();
 let lastTime = startTime;
 const state = {time: 0};
-noise.seed(0.42);
 
 const simCanvas = document.createElement("canvas").transferControlToOffscreen();
 
-const updater = new Worker("gpuUpdateWorker.js");
+const updater = new Worker("updateWorker.js");
 updater.postMessage(
   {
     simCanvas: simCanvas,
