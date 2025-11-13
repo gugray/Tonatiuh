@@ -53,6 +53,8 @@ export default function glsl(options = {}) {
 }
 
 async function runProjector() {
+  fs.copyFileSync("src/live/live.js", "public/live.js");
+
   const basePath = "src/projector";
   const dataPath = path.join(basePath, "data");
 
@@ -105,7 +107,8 @@ async function runProjector() {
       req.pipe(proxyReq, {end: true});
     })
     .listen(projectorPort);
+  console.log(`Local server running at port ${projectorPort}`);
 }
 
 void runProjector();
-// void runRelay(relayPort);
+void runRelay(relayPort);

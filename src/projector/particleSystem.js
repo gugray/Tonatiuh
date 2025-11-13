@@ -125,7 +125,7 @@ function shuffle(arr) {
  */
 export async function loadModelFromPLY(THREE, url, rot) {
   const resp = await fetch(url);
-  const ply = await resp.text();
+  const ply = (await resp.text()).replaceAll("\r", "");
   const lines = ply.split("\n");
 
   // Shuffle points; keep only up to maxParticles

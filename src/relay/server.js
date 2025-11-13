@@ -4,6 +4,7 @@ import cors from "cors";
 import * as http from "http";
 import {WebSocketServer} from "ws";
 
+const kSecret = "sentience";
 const kSocketPath = "/relay";
 const listenerSockets = [];
 let lastContent = null;
@@ -83,10 +84,21 @@ function truncate(str) {
 }
 
 function postRoot(req, response) {
+  if (!req.body.secret || req.body.secret != kSecret) {
+    console.log(`Relay> Request with missing/wrong secret: ${req.body.secret}`);
+    response.status(401).send("BAD_SECRET");
+    return;
+  }
   const digest = truncate(req.body.command);
-  console.log(`Relay> Command posted: ${digest}`);
+  console.log(`Relay> Message from ${req.body.source}: ${digest}`);
   lastTimestamp = new Date().toISOString();
   lastContent = req.body.command;
-  for (const sck of listenerSockets) sck.send(lastContent);
+  for (const sck of listenerSockets) {
+    const data = {
+      content: lastContent,
+      source: req.body.source,
+    };
+    sck.send(JSON.stringify(data));
+  }
   response.status(200).send("OK");
 }

@@ -4,7 +4,9 @@ import * as THREE from "three";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
-// const relaySocketUrl = "ws://100.67.53.78:8090/relay";
+// const tidalLiveSocketUrl = "https://liverelay.aka-gabor.xyz/relay";
+const tidalLiveSocketUrl = null;
+// const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
 const jsLiveSocketUrl = "ws://localhost:8090/relay";
 
 const app = {
@@ -25,6 +27,7 @@ const params = {
   simFieldMul: 2.5, // 2.5 for original
   simSpeed: 0.001,
   maxAge: 24000,
+  updateInstances: null,
 };
 
 const state = {
@@ -47,8 +50,6 @@ const cache = {
   prt: new ParticleData(),
 };
 
-await initApp();
-
 async function initApp() {
   // Init particle system from model
   const rot = new THREE.Matrix4().makeRotationY(Math.PI * 0.5);
@@ -59,25 +60,35 @@ async function initApp() {
   }
 
   // GPU particle system updater in worker thread
-  // const simCanvas = document.createElement("canvas").transferControlToOffscreen();
-  // app.updater = new Worker("updateWorker.js");
-  // app.updater.postMessage(
-  //   {
-  //     simCanvas: simCanvas,
-  //     modelBuffer: app.psys.modelBuffer,
-  //     simBuffer: app.psys.simBuffer,
-  //     simFieldMul: params.simFieldMul,
-  //     simSpeed: params.simSpeed,
-  //     maxAge: params.maxAge,
-  //   },
-  //   [simCanvas],
-  // );
+  const simCanvas = document.createElement("canvas").transferControlToOffscreen();
+  app.updater = new Worker("updateWorker.js");
+  app.updater.postMessage(
+    {
+      simCanvas: simCanvas,
+      modelBuffer: app.psys.modelBuffer,
+      simBuffer: app.psys.simBuffer,
+      simFieldMul: params.simFieldMul,
+      simSpeed: params.simSpeed,
+      maxAge: params.maxAge,
+    },
+    [simCanvas],
+  );
 
   initThree();
   initEvents();
-  // initReceiver(jsLiveSocketUrl, onSocketMessage);
-
+  initReceiver(jsLiveSocketUrl, onSocketMessage);
+  if (tidalLiveSocketUrl) initReceiver(tidalLiveSocketUrl, onSocketMessage);
   onWindowResize();
+
+  // Execute live.js once
+  const initLive = await (await fetch("live.js")).text();
+  const cutoff = initLive.indexOf("// END INIT");
+  onSocketMessage({
+    source: "js",
+    content: initLive.substring(0, cutoff),
+  });
+
+  // Start the movie
   animate();
 }
 
@@ -171,58 +182,6 @@ function updatePointLight(app, cache, params, state) {
   app.pointLight.intensity = 50;
 }
 
-function updateInstances(app, cache, params, state) {
-  // const pointTo = "surface";
-  const pointTo = "field";
-
-  for (let i = 0; i < app.psys.count; ++i) {
-    app.psys.getParticle(i, cache.prt);
-
-    cache.obj.scale.set(1, 1, 1);
-    cache.obj.scale.x = cache.obj.scale.z = 1;
-    cache.obj.position.set(
-      cache.prt.cx * params.modelScale,
-      cache.prt.cy * params.modelScale,
-      cache.prt.cz * params.modelScale,
-    );
-
-    // Where should boxes point? Flow field, or surface normal
-    if (pointTo == "surface") {
-      cache.nrm.set(cache.prt.nx, cache.prt.ny, cache.prt.nz);
-      rotateTmpObjToNrm(cache);
-    }
-    // Flow field
-    else if (pointTo == "field") {
-      cache.nrm.set(cache.prt.vx, cache.prt.vy, cache.prt.vz);
-      cache.nrm.normalize();
-      rotateTmpObjToNrm2(cache);
-      // rotateTmpObjToNrm(perm);
-    }
-
-    cache.obj.updateMatrix();
-    app.mesh.setMatrixAt(i, cache.obj.matrix);
-    cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
-    app.mesh.setColorAt(i, cache.clr);
-  }
-
-  app.mesh.material.opacity = 1.0;
-  app.mesh.instanceMatrix.needsUpdate = true;
-  app.mesh.computeBoundingSphere();
-}
-
-function rotateTmpObjToNrm(perm) {
-  perm.obj.rotation.z = Math.atan2(perm.nrm.y, perm.nrm.x);
-  perm.hor.set(perm.nrm.x, perm.nrm.y, 0).normalize();
-  perm.obj.rotation.y = -Math.atan2(perm.hor.z, perm.hor.x);
-  perm.obj.rotation.x = -Math.atan2(perm.nrm.dot(perm.unitZ), perm.nrm.dot(perm.nrm.clone().cross(perm.unitZ)));
-}
-
-function rotateTmpObjToNrm2(perm) {
-  const angle = perm.unitY.angleTo(perm.nrm);
-  perm.axis.crossVectors(perm.unitY, perm.nrm).normalize();
-  perm.obj.setRotationFromAxisAngle(perm.axis, angle);
-}
-
 function updateCam() {
   // TODO: Use 'elapsed' here for variable FPS stability
   state.camRotSpeed.add(state.camRotAccel);
@@ -250,7 +209,7 @@ function animate() {
 
   updateCam();
   updatePointLight(app, cache, params, state);
-  updateInstances(app, cache, params, state);
+  params.updateInstances(app, cache, params, state);
 
   app.renderer.clear();
   app.renderer.render(app.scene, app.camera);
@@ -258,24 +217,30 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// const commandContext = {
-//   app,
-//   cache,
-//   params,
-//   state,
-//   // setUpdateInstances: function (fun) {
-//   //   updateInstances = fun;
-//   // },
-// };
-//
-// function onSocketMessage(data) {
-//   // Javacript: execute
-//   if (data.source == "js") {
-//     const evalCommand = new Function("ctxt", `with(ctxt) { ${data.content}; }`);
-//     evalCommand(commandContext);
-//   }
-//   // Tidal: display in overlay
-//   else if (data.source == "tidal") {
-//     // TODO
-//   }
-// }
+const commandContext = {
+  app,
+  cache,
+  params,
+  state,
+  setUpdateInstances: function (fun) {
+    params.updateInstances = fun;
+  },
+};
+
+function onSocketMessage(data) {
+  // Javacript: execute
+  if (data.source == "js") {
+    try {
+      const evalCommand = new Function("ctxt", `with(ctxt) { ${data.content}; }`);
+      evalCommand(commandContext);
+    } catch {
+      console.log("Command errored out");
+    }
+  }
+  // Tidal: display in overlay
+  else if (data.source == "tidal") {
+    // TODO
+  }
+}
+
+await initApp();
