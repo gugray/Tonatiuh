@@ -4,11 +4,19 @@ import * as THREE from "three";
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
 
-const mat = new THREE.Matrix4();
-mat.makeRotationY(Math.PI * 0.5);
-const psys = await loadModelFromPLY(THREE, modelUrl, mat);
+const app = {
+  psys: null,
+  updater: null,
+  scene: null,
+  camera: null,
+  renderer: null,
+  camPanGroup: null,
+  camAltitudeGroup: null,
+  camAzimuthGroup: null,
+  pointLight: null,
+};
 
-const ctrl = {
+const params = {
   modelScale: 36,
   preserveBuffer: false,
   simFieldMul: 2.5, // 2.5 for original
@@ -16,7 +24,16 @@ const ctrl = {
   maxAge: 24000,
 };
 
-const perm = {
+const state = {
+  lastTime: Date.now(),
+  time: 0,
+  camRotAccel: new THREE.Vector4(), // x: altitude, y: azimuth
+  camRotSpeed: new THREE.Vector4(), // x: altitude, y: azimuth
+  camPanAccel: new THREE.Vector3(), // x, y: pan; z: distance
+  camPanSpeed: new THREE.Vector3(), // x, y: pan; z: distance
+};
+
+const cache = {
   obj: new THREE.Object3D(),
   nrm: new THREE.Vector3(),
   hor: new THREE.Vector3(),
@@ -27,114 +44,166 @@ const perm = {
   prt: new ParticleData(),
 };
 
-const camRotAccel = new THREE.Vector4(); // x: altitude, y: azimuth
-const camRotSpeed = new THREE.Vector4(); // x: altitude, y: azimuth
-const camPanAccel = new THREE.Vector3(); // x, y: pan; z: distance
-const camPanSpeed = new THREE.Vector3(); // x, y: pan; z: distance
+await initApp();
 
-const startTime = Date.now();
-let lastTime = startTime;
-const state = {time: 0};
+async function initApp() {
+  // Init particle system from model
+  const rot = new THREE.Matrix4().makeRotationY(Math.PI * 0.5);
+  app.psys = await loadModelFromPLY(THREE, modelUrl, rot);
+  app.psys.putAllOnModel();
+  for (let ix = 0; ix < app.psys.count; ++ix) {
+    app.psys.setParticleAge(ix, Math.floor(params.maxAge * Math.random()));
+  }
 
-const simCanvas = document.createElement("canvas").transferControlToOffscreen();
+  // GPU particle system updater in worker thread
+  const simCanvas = document.createElement("canvas").transferControlToOffscreen();
+  app.updater = new Worker("updateWorker.js");
+  app.updater.postMessage(
+    {
+      simCanvas: simCanvas,
+      modelBuffer: app.psys.modelBuffer,
+      simBuffer: app.psys.simBuffer,
+      simFieldMul: params.simFieldMul,
+      simSpeed: params.simSpeed,
+      maxAge: params.maxAge,
+    },
+    [simCanvas],
+  );
 
-const updater = new Worker("updateWorker.js");
-updater.postMessage(
-  {
-    simCanvas: simCanvas,
-    modelBuffer: psys.modelBuffer,
-    simBuffer: psys.simBuffer,
-    simFieldMul: ctrl.simFieldMul,
-    simSpeed: ctrl.simSpeed,
-    maxAge: ctrl.maxAge,
-  },
-  [simCanvas],
-);
+  initThree();
+  initEvents();
 
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x000000, 0.015);
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const camPanGroup = new THREE.Group();
-camPanGroup.position.z = 50;
-camPanGroup.add(camera);
-const camAltitudeGroup = new THREE.Group();
-camAltitudeGroup.add(camPanGroup);
-const camAzimuthGroup = new THREE.Group();
-camAzimuthGroup.add(camAltitudeGroup);
-scene.add(camAzimuthGroup);
-
-const renderer = new THREE.WebGLRenderer({
-  canvas: document.getElementById("canv3"),
-  preserveDrawingBuffer: true,
-  alpha: true,
-});
-renderer.autoClear = false;
-renderer.shadowMap.enabled = false;
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-
-function makeDirLight(x, y, z, intensity) {
-  const light = new THREE.DirectionalLight(0xffffff, intensity);
-  light.position.set(x, y, z);
-  return light;
+  onWindowResize();
+  animate();
 }
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
-scene.add(ambientLight);
+function initThree() {
+  app.scene = new THREE.Scene();
+  app.scene.fog = new THREE.FogExp2(0x000000, 0.015);
+  app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  app.camPanGroup = new THREE.Group();
+  app.camPanGroup.position.z = 50;
+  app.camPanGroup.add(app.camera);
+  app.camAltitudeGroup = new THREE.Group();
+  app.camAltitudeGroup.add(app.camPanGroup);
+  app.camAzimuthGroup = new THREE.Group();
+  app.camAzimuthGroup.add(app.camAltitudeGroup);
+  app.scene.add(app.camAzimuthGroup);
 
-const dirLight1 = makeDirLight(-100, 50, 100, 0.8);
-scene.add(dirLight1);
+  app.renderer = new THREE.WebGLRenderer({
+    canvas: document.getElementById("canv3"),
+    preserveDrawingBuffer: true,
+    alpha: true,
+  });
+  app.renderer.autoClear = false;
+  app.renderer.shadowMap.enabled = false;
+  app.renderer.setSize(window.innerWidth, window.innerHeight);
+  app.renderer.setPixelRatio(window.devicePixelRatio);
 
-const dirLight2 = makeDirLight(0, 100, -10, 0.6);
-scene.add(dirLight2);
+  function makeDirLight(x, y, z, intensity) {
+    const light = new THREE.DirectionalLight(0xffffff, intensity);
+    light.position.set(x, y, z);
+    return light;
+  }
 
-const pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
-scene.add(pointLight);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+  app.scene.add(ambientLight);
 
-const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
-const material = new THREE.MeshPhongMaterial({transparent: true});
+  const dirLight1 = makeDirLight(-100, 50, 100, 0.8);
+  app.scene.add(dirLight1);
 
-const mesh = new THREE.InstancedMesh(geometry, material, psys.count);
-mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-scene.add(mesh);
+  const dirLight2 = makeDirLight(0, 100, -10, 0.6);
+  app.scene.add(dirLight2);
 
-psys.putAllOnModel();
-for (let ix = 0; ix < psys.count; ++ix) {
-  psys.setParticleAge(ix, Math.floor(ctrl.maxAge * Math.random()));
-  psys.getParticle(ix, perm.prt);
-  perm.clr.set(perm.prt.r / 64, perm.prt.g / 64, perm.prt.b / 64);
+  app.pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
+  app.scene.add(app.pointLight);
+
+  const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
+  const material = new THREE.MeshPhongMaterial({transparent: true});
+
+  app.mesh = new THREE.InstancedMesh(geometry, material, app.psys.count);
+  app.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  app.scene.add(app.mesh);
 }
 
-function updateInstances(perm, ctrl, state, psys, mesh) {
+function onWindowResize() {
+  app.camera.aspect = window.innerWidth / window.innerHeight;
+  app.camera.updateProjectionMatrix();
+  app.renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function initEvents() {
+  document.body.addEventListener("keydown", (e) => {
+    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+      if (e.key == "ArrowLeft") state.camRotAccel.y = -0.0005;
+      else if (e.key == "ArrowRight") state.camRotAccel.y = 0.0005;
+      else if (e.key == "ArrowUp") state.camRotAccel.x = -0.0005;
+      else if (e.key == "ArrowDown") state.camRotAccel.x = 0.0005;
+    } //
+    else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (e.key == "ArrowLeft") state.camPanAccel.x = 0.01;
+      else if (e.key == "ArrowRight") state.camPanAccel.x = -0.01;
+      else if (e.key == "ArrowUp") state.camPanAccel.y = -0.01;
+      else if (e.key == "ArrowDown") state.camPanAccel.y = 0.01;
+    } //
+    else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      if (e.key == "ArrowUp") state.camPanAccel.z = -0.01;
+      else if (e.key == "ArrowDown") state.camPanAccel.z = 0.01;
+    }
+  });
+
+  document.body.addEventListener("keyup", (e) => {
+    if (e.key == "ArrowLeft" || e.key == "ArrowRight" || e.key == "ArrowUp" || e.key == "ArrowDown") {
+      state.camRotAccel.set(0, 0, 0, 0);
+      state.camPanAccel.set(0, 0, 0);
+    }
+  });
+
+  window.addEventListener("resize", onWindowResize);
+}
+
+function updatePointLight(app, cache, params, state) {
+  app.pointLight.position.set(20 * Math.sin(state.time * 0.0003), 5, 12 * Math.cos(state.time * 0.0003));
+  app.pointLight.intensity = 50;
+}
+
+function updateInstances(app, cache, params, state) {
   // const pointTo = "surface";
   const pointTo = "field";
 
-  for (let i = 0; i < psys.count; ++i) {
-    psys.getParticle(i, perm.prt);
+  for (let i = 0; i < app.psys.count; ++i) {
+    app.psys.getParticle(i, cache.prt);
 
-    perm.obj.scale.set(1, 1, 1);
-    perm.obj.scale.x = perm.obj.scale.z = 1;
-    perm.obj.position.set(perm.prt.cx * ctrl.modelScale, perm.prt.cy * ctrl.modelScale, perm.prt.cz * ctrl.modelScale);
+    cache.obj.scale.set(1, 1, 1);
+    cache.obj.scale.x = cache.obj.scale.z = 1;
+    cache.obj.position.set(
+      cache.prt.cx * params.modelScale,
+      cache.prt.cy * params.modelScale,
+      cache.prt.cz * params.modelScale,
+    );
 
     // Where should boxes point? Flow field, or surface normal
     if (pointTo == "surface") {
-      perm.nrm.set(perm.prt.nx, perm.prt.ny, perm.prt.nz);
-      rotateTmpObjToNrm(perm);
+      cache.nrm.set(cache.prt.nx, cache.prt.ny, cache.prt.nz);
+      rotateTmpObjToNrm(cache);
     }
     // Flow field
     else if (pointTo == "field") {
-      perm.nrm.set(perm.prt.vx, perm.prt.vy, perm.prt.vz);
-      perm.nrm.normalize();
-      rotateTmpObjToNrm2(perm);
+      cache.nrm.set(cache.prt.vx, cache.prt.vy, cache.prt.vz);
+      cache.nrm.normalize();
+      rotateTmpObjToNrm2(cache);
       // rotateTmpObjToNrm(perm);
     }
 
-    perm.obj.updateMatrix();
-    mesh.setMatrixAt(i, perm.obj.matrix);
-    perm.clr.set(perm.prt.r / 64, perm.prt.g / 64, perm.prt.b / 64);
-    mesh.setColorAt(i, perm.clr);
-    mesh.material.opacity = 1.0;
+    cache.obj.updateMatrix();
+    app.mesh.setMatrixAt(i, cache.obj.matrix);
+    cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
+    app.mesh.setColorAt(i, cache.clr);
   }
+
+  app.mesh.material.opacity = 1.0;
+  app.mesh.instanceMatrix.needsUpdate = true;
+  app.mesh.computeBoundingSphere();
 }
 
 function rotateTmpObjToNrm(perm) {
@@ -150,73 +219,37 @@ function rotateTmpObjToNrm2(perm) {
   perm.obj.setRotationFromAxisAngle(perm.axis, angle);
 }
 
+function updateCam() {
+  // TODO: Use 'elapsed' here for variable FPS stability
+  state.camRotSpeed.add(state.camRotAccel);
+  state.camPanSpeed.add(state.camPanAccel);
+  app.camAltitudeGroup.rotation.x += state.camRotSpeed.x;
+  app.camAzimuthGroup.rotation.y += state.camRotSpeed.y;
+  app.camPanGroup.position.x += state.camPanSpeed.x;
+  app.camPanGroup.position.y += state.camPanSpeed.y;
+  app.camPanGroup.position.z += state.camPanSpeed.z;
+
+  state.camRotSpeed.multiplyScalar(0.985);
+  if (Math.abs(state.camRotSpeed.y) < 0.0001) state.camRotSpeed.y = 0;
+  if (Math.abs(state.camRotSpeed.x) < 0.0001) state.camRotSpeed.x = 0;
+
+  state.camPanSpeed.multiplyScalar(0.985);
+  if (Math.abs(state.camPanSpeed.y) < 0.0001) state.camPanSpeed.y = 0;
+  if (Math.abs(state.camPanSpeed.x) < 0.0001) state.camPanSpeed.x = 0;
+  if (Math.abs(state.camPanSpeed.z) < 0.0001) state.camPanSpeed.z = 0;
+}
+
 function animate() {
   const now = Date.now();
-  state.time += now - lastTime;
-  lastTime = now;
+  state.time += now - state.lastTime;
+  state.lastTime = now;
 
-  camRotSpeed.add(camRotAccel);
-  camPanSpeed.add(camPanAccel);
-  camAltitudeGroup.rotation.x += camRotSpeed.x;
-  camAzimuthGroup.rotation.y += camRotSpeed.y;
-  camPanGroup.position.x += camPanSpeed.x;
-  camPanGroup.position.y += camPanSpeed.y;
-  camPanGroup.position.z += camPanSpeed.z;
+  updateCam();
+  updatePointLight(app, cache, params, state);
+  updateInstances(app, cache, params);
 
-  camRotSpeed.multiplyScalar(0.985);
-  if (Math.abs(camRotSpeed.y) < 0.0001) camRotSpeed.y = 0;
-  if (Math.abs(camRotSpeed.x) < 0.0001) camRotSpeed.x = 0;
-  camPanSpeed.multiplyScalar(0.985);
-  if (Math.abs(camPanSpeed.y) < 0.0001) camPanSpeed.y = 0;
-  if (Math.abs(camPanSpeed.x) < 0.0001) camPanSpeed.x = 0;
-  if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
-
-  pointLight.position.set(20 * Math.sin(state.time * 0.0003), 5, 12 * Math.cos(state.time * 0.0003));
-  pointLight.intensity = 50;
-
-  updateInstances(perm, ctrl, state, psys, mesh);
-  mesh.instanceMatrix.needsUpdate = true;
-  mesh.computeBoundingSphere();
-
-  renderer.clear();
-  renderer.render(scene, camera);
+  app.renderer.clear();
+  app.renderer.render(app.scene, app.camera);
 
   requestAnimationFrame(animate);
 }
-
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-onWindowResize();
-animate();
-
-window.addEventListener("resize", onWindowResize);
-
-document.body.addEventListener("keydown", (e) => {
-  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
-    if (e.key == "ArrowLeft") camRotAccel.y = -0.0005;
-    else if (e.key == "ArrowRight") camRotAccel.y = 0.0005;
-    else if (e.key == "ArrowUp") camRotAccel.x = -0.0005;
-    else if (e.key == "ArrowDown") camRotAccel.x = 0.0005;
-  } //
-  else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (e.key == "ArrowLeft") camPanAccel.x = 0.01;
-    else if (e.key == "ArrowRight") camPanAccel.x = -0.01;
-    else if (e.key == "ArrowUp") camPanAccel.y = -0.01;
-    else if (e.key == "ArrowDown") camPanAccel.y = 0.01;
-  } //
-  else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-    if (e.key == "ArrowUp") camPanAccel.z = -0.01;
-    else if (e.key == "ArrowDown") camPanAccel.z = 0.01;
-  }
-});
-
-document.body.addEventListener("keyup", (e) => {
-  if (e.key == "ArrowLeft" || e.key == "ArrowRight" || e.key == "ArrowUp" || e.key == "ArrowDown") {
-    camRotAccel.set(0, 0, 0, 0);
-    camPanAccel.set(0, 0, 0);
-  }
-});
