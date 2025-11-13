@@ -19,7 +19,6 @@ let simFieldMul, simSpeed, maxAge;
 let lastUpdateTime = null;
 
 function init(modelBuffer, simBuffer, simCanvas) {
-
   psys = new ParticleSystem(modelBuffer, simBuffer);
 
   gl = simCanvas.getContext("webgl2");
@@ -29,7 +28,7 @@ function init(modelBuffer, simBuffer, simCanvas) {
     position: {numComponents: 2, data: [-1, -1, -1, 1, 1, -1, -1, 1, 1, -1, 1, 1]},
   };
   sweepBufferInfo = twgl.createBufferInfoFromArrays(gl, sweepArrays);
-  simArrays = { index: {numComponents: 1, data: []}};
+  simArrays = {index: {numComponents: 1, data: []}};
   for (let i = 0; i < psys.count; ++i) simArrays.index.data.push(i);
   simBufferInfo = twgl.createBufferInfoFromArrays(gl, simArrays);
 
@@ -58,13 +57,15 @@ function createDataTexture(sz, initFrom) {
       data[i * 4 + 1] = prt.my;
       data[i * 4 + 2] = prt.mz;
       data[i * 4 + 3] = prt.age;
-    } else if (initFrom == "normal") {
+    } //
+    else if (initFrom == "normal") {
       data[i * 4] = prt.nx;
       data[i * 4 + 1] = prt.ny;
       data[i * 4 + 2] = prt.nz;
       data[i * 4 + 3] = 0;
-    } else {
-      data[i * 4] = data[i* 4 + 1] = data[i * 4 + 2] = data[i * 4 + 3] = 0;
+    } //
+    else {
+      data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = data[i * 4 + 3] = 0;
     }
   }
   const tx = twgl.createTexture(gl, {
@@ -79,7 +80,6 @@ function createDataTexture(sz, initFrom) {
 }
 
 function updateParticle(i, dt) {
-
   psys.getParticle(i, prt);
 
   // let curl = simplex3curl(prt.cx * simFieldMul, prt.cy * simFieldMul, prt.cz * simFieldMul);
@@ -132,15 +132,15 @@ onmessage = (e) => {
 function reset(kind) {
   let updatePt;
   if (kind == "model") {
-    updatePt = i => {
+    updatePt = (i) => {
       psys.getParticle(i, prt);
       prt.age = Math.round((Math.random() - 0.5) * maxAge);
       prt.cx = prt.mx;
       prt.cy = prt.my;
       prt.cz = prt.mz;
       psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.age);
-    }
-  }
+    };
+  } //
   else return;
   for (let i = 0; i < psys.count; ++i) {
     updatePt(i);
@@ -148,7 +148,6 @@ function reset(kind) {
 }
 
 function updateSimulation(dt) {
-
   // Update velocities
   const unisVelo = {
     sz: szDataTexture,
@@ -197,7 +196,6 @@ function updateSimulation(dt) {
 }
 
 function updateLoop() {
-
   let dt = 10;
   const t0 = Date.now();
   if (lastUpdateTime != null) dt = t0 - lastUpdateTime;

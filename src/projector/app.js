@@ -36,20 +36,23 @@ const camPanSpeed = new THREE.Vector3(); // x, y: pan; z: distance
 
 const startTime = Date.now();
 let lastTime = startTime;
-const state = { time: 0 };
+const state = {time: 0};
 noise.seed(0.42);
 
 const simCanvas = document.createElement("canvas").transferControlToOffscreen();
 
 const updater = new Worker("gpuUpdateWorker.js");
-updater.postMessage({
-  simCanvas: simCanvas,
-  modelBuffer: psys.modelBuffer,
-  simBuffer: psys.simBuffer,
-  simFieldMul: ctrl.simFieldMul,
-  simSpeed: ctrl.simSpeed,
-  maxAge: ctrl.maxAge,
-}, [simCanvas]);
+updater.postMessage(
+  {
+    simCanvas: simCanvas,
+    modelBuffer: psys.modelBuffer,
+    simBuffer: psys.simBuffer,
+    simFieldMul: ctrl.simFieldMul,
+    simSpeed: ctrl.simSpeed,
+    maxAge: ctrl.maxAge,
+  },
+  [simCanvas],
+);
 
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000000, 0.015);
@@ -91,9 +94,8 @@ scene.add(dirLight2);
 const pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
 scene.add(pointLight);
 
-
 const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
-const material = new THREE.MeshPhongMaterial({ transparent: true });
+const material = new THREE.MeshPhongMaterial({transparent: true});
 
 const mesh = new THREE.InstancedMesh(geometry, material, psys.count);
 mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -107,12 +109,10 @@ for (let ix = 0; ix < psys.count; ++ix) {
 }
 
 function updateInstances(perm, ctrl, state, psys, mesh) {
-
   // const pointTo = "surface";
   const pointTo = "field";
 
   for (let i = 0; i < psys.count; ++i) {
-
     psys.getParticle(i, perm.prt);
 
     perm.obj.scale.set(1, 1, 1);
@@ -147,18 +147,15 @@ function rotateTmpObjToNrm(perm) {
   perm.obj.rotation.x = -Math.atan2(perm.nrm.dot(perm.unitZ), perm.nrm.dot(perm.nrm.clone().cross(perm.unitZ)));
 }
 
-
 function rotateTmpObjToNrm2(perm) {
   const angle = perm.unitY.angleTo(perm.nrm);
   perm.axis.crossVectors(perm.unitY, perm.nrm).normalize();
   perm.obj.setRotationFromAxisAngle(perm.axis, angle);
 }
 
-
 function animate() {
-
   const now = Date.now();
-  state.time += (now - lastTime);
+  state.time += now - lastTime;
   lastTime = now;
 
   camRotSpeed.add(camRotAccel);
@@ -177,11 +174,7 @@ function animate() {
   if (Math.abs(camPanSpeed.x) < 0.0001) camPanSpeed.x = 0;
   if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
 
-  pointLight.position.set(
-    20 * Math.sin(state.time * 0.0003),
-    5,
-    12 * Math.cos(state.time * 0.0003)
-  );
+  pointLight.position.set(20 * Math.sin(state.time * 0.0003), 5, 12 * Math.cos(state.time * 0.0003));
   pointLight.intensity = 50;
 
   updateInstances(perm, ctrl, state, psys, mesh);
@@ -203,29 +196,29 @@ function onWindowResize() {
 onWindowResize();
 animate();
 
-window.addEventListener('resize', onWindowResize);
+window.addEventListener("resize", onWindowResize);
 
-document.body.addEventListener("keydown", e => {
+document.body.addEventListener("keydown", (e) => {
   if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
     if (e.key == "ArrowLeft") camRotAccel.y = -0.0005;
     else if (e.key == "ArrowRight") camRotAccel.y = 0.0005;
     else if (e.key == "ArrowUp") camRotAccel.x = -0.0005;
     else if (e.key == "ArrowDown") camRotAccel.x = 0.0005;
-  } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  } //
+  else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (e.key == "ArrowLeft") camPanAccel.x = 0.01;
     else if (e.key == "ArrowRight") camPanAccel.x = -0.01;
     else if (e.key == "ArrowUp") camPanAccel.y = -0.01;
     else if (e.key == "ArrowDown") camPanAccel.y = 0.01;
-  } else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+  } //
+  else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     if (e.key == "ArrowUp") camPanAccel.z = -0.01;
     else if (e.key == "ArrowDown") camPanAccel.z = 0.01;
   }
 });
 
-
-document.body.addEventListener("keyup", e => {
-  if (e.key == "ArrowLeft" || e.key == "ArrowRight" ||
-    e.key == "ArrowUp" || e.key == "ArrowDown") {
+document.body.addEventListener("keyup", (e) => {
+  if (e.key == "ArrowLeft" || e.key == "ArrowRight" || e.key == "ArrowUp" || e.key == "ArrowDown") {
     camRotAccel.set(0, 0, 0, 0);
     camPanAccel.set(0, 0, 0);
   }

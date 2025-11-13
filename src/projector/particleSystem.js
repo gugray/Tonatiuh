@@ -37,8 +37,7 @@ export class ParticleSystem {
       // 9 values per point from model
       this.modelBuffer = new SharedArrayBuffer(this.count * 9 * 4);
       this.modelArray = new Float32Array(this.modelBuffer);
-      for (let i = 0; i < this.modelArray.length; ++i)
-        this.modelArray[i] = modelValues[i];
+      for (let i = 0; i < this.modelArray.length; ++i) this.modelArray[i] = modelValues[i];
       // 7 values per point in simulation
       this.simBuffer = new SharedArrayBuffer(this.count * 7 * 4);
       this.simArray = new Float32Array(this.simBuffer);
@@ -105,7 +104,7 @@ export class ParticleSystem {
   scatterAll() {
     for (let ix = 0; ix < this.count; ++ix) {
       const sofs = ix * 7;
-      this.simArray[sofs] =  Math.random() - 0.5;
+      this.simArray[sofs] = Math.random() - 0.5;
       this.simArray[sofs + 1] = Math.random() - 0.5;
       this.simArray[sofs + 2] = Math.random() - 0.5;
     }
@@ -125,7 +124,6 @@ function shuffle(arr) {
  * @returns {Promise<ParticleSystem>}
  */
 export async function loadModelFromPLY(THREE, url, rot) {
-
   const resp = await fetch(url);
   const ply = await resp.text();
   const lines = ply.split("\n");
@@ -134,21 +132,24 @@ export async function loadModelFromPLY(THREE, url, rot) {
   const filteredLines = [];
   let headerOver = false;
   for (const ln of lines) {
-    if (ln == "end_header") { headerOver = true; continue; }
-    else if (!headerOver || ln == "") continue;
+    if (ln == "end_header") {
+      headerOver = true;
+      continue;
+    } else if (!headerOver || ln == "") continue;
     filteredLines.push(ln);
   }
   shuffle(filteredLines);
-  if (maxParticles !== undefined && filteredLines.length > maxParticles)
-    filteredLines.length = maxParticles;
+  if (maxParticles !== undefined && filteredLines.length > maxParticles) filteredLines.length = maxParticles;
 
   const values = [];
-  let xMin = Number.MAX_VALUE, xMax = Number.MIN_VALUE;
-  let yMin = Number.MAX_VALUE, yMax = Number.MIN_VALUE;
-  let zMin = Number.MAX_VALUE, zMax = Number.MIN_VALUE;
+  let xMin = Number.MAX_VALUE,
+    xMax = Number.MIN_VALUE;
+  let yMin = Number.MAX_VALUE,
+    yMax = Number.MIN_VALUE;
+  let zMin = Number.MAX_VALUE,
+    zMax = Number.MIN_VALUE;
 
   for (const ln of filteredLines) {
-
     const ptvals = parseLine(ln.trim());
     if (ptvals[0] < xMin) xMin = ptvals[0];
     if (ptvals[0] > xMax) xMax = ptvals[0];
@@ -172,27 +173,25 @@ export async function loadModelFromPLY(THREE, url, rot) {
 }
 
 function rotate(THREE, values, rot) {
-
   const vec = new THREE.Vector3();
   const nItems = values.length / 9;
 
   for (let ix = 0; ix < nItems; ++ix) {
-
     // Rotate position
-    vec.set(values[ix*9], values[ix*9+1], values[ix*9+2]);
+    vec.set(values[ix * 9], values[ix * 9 + 1], values[ix * 9 + 2]);
     vec.applyMatrix4(rot);
-    values[ix*9] = vec.x;
-    values[ix*9+1] = vec.y;
-    values[ix*9+2] = vec.z;
+    values[ix * 9] = vec.x;
+    values[ix * 9 + 1] = vec.y;
+    values[ix * 9 + 2] = vec.z;
 
     // Rotate normal
     // This was not done in original sketch lol
     // Made for an interesting outcome - revisit?
-    vec.set(values[ix*9+6], values[ix*9+7], values[ix*9+8]);
+    vec.set(values[ix * 9 + 6], values[ix * 9 + 7], values[ix * 9 + 8]);
     vec.applyMatrix4(rot);
-    values[ix*9+6] = vec.x;
-    values[ix*9+7] = vec.y;
-    values[ix*9+8] = vec.z;
+    values[ix * 9 + 6] = vec.x;
+    values[ix * 9 + 7] = vec.y;
+    values[ix * 9 + 8] = vec.z;
   }
 }
 
@@ -203,7 +202,7 @@ function normalize(values, ofs, min, max, maxRange) {
   const nItems = values.length / 9;
   for (let ix = 0; ix < nItems; ++ix) {
     const val = values[ix * 9 + ofs];
-    const normalized = (val - center) / range * 2 * aspect;
+    const normalized = ((val - center) / range) * 2 * aspect;
     values[ix * 9 + ofs] = normalized;
   }
 }
@@ -212,11 +211,8 @@ function parseLine(ln) {
   const parts = ln.split(" ");
   if (parts.length != 9) throw new Error(`Line should have 9 values; found ${ln.length}`);
   const res = [];
-  for (let i = 0; i < 3; ++i)
-    res.push(Number.parseFloat(parts[i]));
-  for (let i = 3; i < 6; ++i)
-    res.push(Number.parseInt(parts[i]));
-  for (let i = 6; i < 9; ++i)
-    res.push(Number.parseFloat(parts[i]));
+  for (let i = 0; i < 3; ++i) res.push(Number.parseFloat(parts[i]));
+  for (let i = 3; i < 6; ++i) res.push(Number.parseInt(parts[i]));
+  for (let i = 6; i < 9; ++i) res.push(Number.parseFloat(parts[i]));
   return res;
 }
