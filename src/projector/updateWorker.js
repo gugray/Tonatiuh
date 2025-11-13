@@ -1,11 +1,9 @@
-import * as THREE from "three";
 import * as twgl from "twgl.js";
 import sSweepVert from "shaders/sweep-vert.glsl";
 import sCalcPosFrag from "shaders/calc-pos.glsl";
 import sCalcVeloFrag from "shaders/calc-velo.glsl";
 import {ParticleSystem, ParticleData} from "./particleSystem.js";
 import {sortedArray} from "three/src/animation/AnimationUtils.js";
-import {simplex3curl} from "../01-modelp/curl.js";
 
 const prt = new ParticleData();
 
@@ -120,7 +118,6 @@ onmessage = (e) => {
   if (e.data.modelBuffer) {
     init(e.data.modelBuffer, e.data.simBuffer, e.data.simCanvas);
   }
-  if ("modelScale" in e.data) modelScale = e.data.modelScale;
   if ("simFieldMul" in e.data) simFieldMul = e.data.simFieldMul;
   if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
   if ("maxAge" in e.data) maxAge = e.data.maxAge;

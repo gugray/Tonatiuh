@@ -1,8 +1,11 @@
+import {initReceiver} from "./receiver.js";
 import {loadModelFromPLY, ParticleData} from "./particleSystem.js";
 import * as THREE from "three";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
+// const relaySocketUrl = "ws://100.67.53.78:8090/relay";
+const jsLiveSocketUrl = "ws://localhost:8090/relay";
 
 const app = {
   psys: null,
@@ -56,22 +59,23 @@ async function initApp() {
   }
 
   // GPU particle system updater in worker thread
-  const simCanvas = document.createElement("canvas").transferControlToOffscreen();
-  app.updater = new Worker("updateWorker.js");
-  app.updater.postMessage(
-    {
-      simCanvas: simCanvas,
-      modelBuffer: app.psys.modelBuffer,
-      simBuffer: app.psys.simBuffer,
-      simFieldMul: params.simFieldMul,
-      simSpeed: params.simSpeed,
-      maxAge: params.maxAge,
-    },
-    [simCanvas],
-  );
+  // const simCanvas = document.createElement("canvas").transferControlToOffscreen();
+  // app.updater = new Worker("updateWorker.js");
+  // app.updater.postMessage(
+  //   {
+  //     simCanvas: simCanvas,
+  //     modelBuffer: app.psys.modelBuffer,
+  //     simBuffer: app.psys.simBuffer,
+  //     simFieldMul: params.simFieldMul,
+  //     simSpeed: params.simSpeed,
+  //     maxAge: params.maxAge,
+  //   },
+  //   [simCanvas],
+  // );
 
   initThree();
   initEvents();
+  // initReceiver(jsLiveSocketUrl, onSocketMessage);
 
   onWindowResize();
   animate();
@@ -246,10 +250,32 @@ function animate() {
 
   updateCam();
   updatePointLight(app, cache, params, state);
-  updateInstances(app, cache, params);
+  updateInstances(app, cache, params, state);
 
   app.renderer.clear();
   app.renderer.render(app.scene, app.camera);
 
   requestAnimationFrame(animate);
 }
+
+// const commandContext = {
+//   app,
+//   cache,
+//   params,
+//   state,
+//   // setUpdateInstances: function (fun) {
+//   //   updateInstances = fun;
+//   // },
+// };
+//
+// function onSocketMessage(data) {
+//   // Javacript: execute
+//   if (data.source == "js") {
+//     const evalCommand = new Function("ctxt", `with(ctxt) { ${data.content}; }`);
+//     evalCommand(commandContext);
+//   }
+//   // Tidal: display in overlay
+//   else if (data.source == "tidal") {
+//     // TODO
+//   }
+// }
