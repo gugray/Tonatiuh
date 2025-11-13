@@ -9,9 +9,12 @@
     "email": "gabor.reads.this@gmail.com"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
     "prismjs": "^1.30.0",
     "three": "^0.157.0",
-    "twgl.js": "^7.0.0"
+    "twgl.js": "^7.0.0",
+    "ws": "^8.17.1"
   },
   "devDependencies": {
     "@jgoz/esbuild-plugin-livereload": "^2.0.3",
