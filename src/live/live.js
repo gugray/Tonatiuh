@@ -52,7 +52,6 @@ setUpdateInstances((app, cache, params, state) => {
 // END INIT
 // ====================================
 
-
 // Re-declarations for editor comfort
 // ====================================
 const params = {

@@ -1,4 +1,7 @@
+import {shuffle} from "./random.js";
+
 const maxParticles = 40920;
+// const maxParticles = 400;
 
 export class ParticleData {
   constructor() {
@@ -108,15 +111,6 @@ export class ParticleSystem {
       this.simArray[sofs + 1] = Math.random() - 0.5;
       this.simArray[sofs + 2] = Math.random() - 0.5;
     }
-  }
-}
-
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const temp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = temp;
   }
 }
 
