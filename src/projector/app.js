@@ -1,6 +1,7 @@
 import {mulberry32, setRandomGenerator} from "./random.js";
 import {initReceiver} from "./receiver.js";
 import {loadModelFromPLY, ParticleData} from "./particleSystem.js";
+import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated} from "./audioLayer.js";
 import * as THREE from "three";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
@@ -97,6 +98,19 @@ async function initApp() {
 
   // Start the movie
   animate();
+
+  // setTimeout(() => {
+  //   fillTidalSamples();
+  // }, 1000);
+  // onTidalCanvasUpdated((canvas) => {
+  //   const texture = new THREE.CanvasTexture(canvas);
+  //   if (app.mesh.material.map) {
+  //     app.mesh.material.map.dispose();
+  //     app.mesh.material.map = null;
+  //   }
+  //   app.mesh.material.map = texture;
+  //   app.mesh.material.needsUpdate = true;
+  // });
 }
 
 function initThree() {
@@ -105,7 +119,7 @@ function initThree() {
   app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   app.camPanGroup = new THREE.Group();
   app.camPanGroup.position.z = 50;
-  // app.camPanGroup.position.z = -0.3; // 50
+  // app.camPanGroup.position.z = 25; // 50
   // app.camPanGroup.position.x = 18.5; // DBG
   // app.camPanGroup.position.y = -0.5; // DBG
   app.camPanGroup.add(app.camera);
@@ -142,20 +156,28 @@ function initThree() {
   app.pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
   app.scene.add(app.pointLight);
 
+  // TODO: black 1x texture
   const textureLoader = new THREE.TextureLoader();
   const texture = textureLoader.load("/data/ybart.png");
 
   const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
   const material = new THREE.MeshPhongMaterial({map: texture, transparent: true});
-  // const material = blockMat;
+
   material.onBeforeCompile = (shader) => {
     console.log(shader.fragmentShader);
+    // This comes first in code => we'll use mapColor later.
+    // prettier-ignore
+    shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", `
+vec4 mapColor = texture2D( map, vMapUv );
+vec3 totalEmissiveRadiance;
+if (length(mapColor.rgb) > 0.3) totalEmissiveRadiance = mapColor.rgb * 0.5;
+else totalEmissiveRadiance = emissive;
+    `);
     // prettier-ignore
     shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
-vec4 sampledDiffuseColor = texture2D( map, vMapUv );
 float alpha = 1.0;
-if (length(sampledDiffuseColor.rgb) > 0.3) diffuseColor = sampledDiffuseColor;
-else { diffuseColor *= 0.9; alpha = 0.3; }
+if (length(mapColor.rgb) > 0.3) diffuseColor = mapColor;
+else { diffuseColor *= 0.9; alpha = 0.6; }
     `);
     // prettier-ignore
     shader.fragmentShader = shader.fragmentShader.replace("#include <dithering_fragment>", `
@@ -279,7 +301,7 @@ function onSocketMessage(data) {
   }
   // Tidal: display in overlay
   else if (data.source == "tidal") {
-    // TODO
+    tidalUpdate(data.content);
   }
 }
 

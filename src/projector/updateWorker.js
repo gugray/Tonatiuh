@@ -172,7 +172,7 @@ function updateSimulation(dt) {
     sz: szDataTexture,
     txPrev: txPos0,
     txVelo: txVelo,
-    simSpeed: simSpeed * 0.0, // TODO DBG
+    simSpeed: simSpeed * 0.1, // TODO DBG
     dt: dt,
   };
   let atmsPosU = [{attachment: txPos1}];

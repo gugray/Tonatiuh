@@ -5,6 +5,7 @@ params.simSpeed = 0.001;
 params.maxAge = 24000;
 
 setUpdateInstances((app, cache, params, state) => {
+  app.mesh.geometry.rotateY(0.01);
   // const pointTo = "surface";
   const pointTo = "field";
   for (let i = 0; i < app.psys.count; ++i) {
