@@ -19,16 +19,14 @@ setUpdateInstances((app, cache, params, state) => {
     );
     // Where should boxes point? Flow field, or surface normal
     if (pointTo == "surface") {
-      cache.nrm.set(cache.prt.nx, cache.prt.ny, cache.prt.nz);
-      // rotateTmpObjToNrm(cache);
+      cache.dir.set(cache.prt.nx, cache.prt.ny, cache.prt.nz);
     }
     // Flow field
     else if (pointTo == "field") {
-      cache.nrm.set(cache.prt.vx, cache.prt.vy, cache.prt.vz);
-      cache.nrm.normalize();
-      rotateTmpObjToNrm2(cache);
-      // rotateTmpObjToNrm(perm);
+      cache.dir.set(cache.prt.vx, cache.prt.vy, cache.prt.vz);
+      cache.dir.normalize();
     }
+    cache.obj.quaternion.setFromUnitVectors(cache.unitY, cache.dir);
     cache.obj.updateMatrix();
     app.mesh.setMatrixAt(i, cache.obj.matrix);
     cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
@@ -37,17 +35,6 @@ setUpdateInstances((app, cache, params, state) => {
   app.mesh.material.opacity = 1.0;
   app.mesh.instanceMatrix.needsUpdate = true;
   app.mesh.computeBoundingSphere();
-  function rotateTmpObjToNrm(perm) {
-    perm.obj.rotation.z = Math.atan2(perm.nrm.y, perm.nrm.x);
-    perm.nrmxy.set(perm.nrm.x, perm.nrm.y, 0).normalize();
-    perm.obj.rotation.y = -Math.atan2(perm.nrmxy.z, perm.nrmxy.x);
-    perm.obj.rotation.x = -Math.atan2(perm.nrm.dot(perm.unitZ), perm.nrm.dot(perm.nrm.clone().cross(perm.unitZ)));
-  }
-  function rotateTmpObjToNrm2(perm) {
-    const angle = perm.unitY.angleTo(perm.nrm);
-    perm.axis.crossVectors(perm.unitY, perm.nrm).normalize();
-    perm.obj.setRotationFromAxisAngle(perm.axis, angle);
-  }
 });
 
 // END INIT

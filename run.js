@@ -53,13 +53,11 @@ export default function glsl(options = {}) {
 }
 
 async function runProjector() {
-  fs.copyFileSync("src/live/live.js", "public/live.js");
-
   const basePath = "src/projector";
   const dataPath = path.join(basePath, "data");
 
   // Cotext for main app
-  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "updateWorker.js"];
+  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "liveInit.ljs", "updateWorker.js"];
   for (let i = 0; i < entryPoints.length; ++i) entryPoints[i] = path.join(basePath, entryPoints[i]);
 
   if (fs.existsSync(dataPath)) entryPoints.push(dataPath + "/*");
@@ -73,6 +71,7 @@ async function runProjector() {
     loader: {
       ".html": "copy",
       ".css": "copy",
+      ".ljs": "copy",
       ".txt": "copy",
       ".ply": "copy",
       ".jpg": "copy",

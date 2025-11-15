@@ -46,8 +46,10 @@ const state = {
 
 const cache = {
   obj: new THREE.Object3D(),
-  nrm: new THREE.Vector3(),
-  hor: new THREE.Vector3(),
+  dir: new THREE.Vector3(),
+  dirxy: new THREE.Vector3(),
+  quat: new THREE.Quaternion(),
+  mat4: new THREE.Matrix4(),
   unitZ: new THREE.Vector3(0, 0, 1),
   unitY: new THREE.Vector3(0, 1, 0),
   axis: new THREE.Vector3(),
@@ -87,9 +89,9 @@ async function initApp() {
   if (tidalLiveSocketUrl) initReceiver(tidalLiveSocketUrl, onSocketMessage);
   onWindowResize();
 
-  // Execute live.js once
+  // Execute liveInit.ljs
   // This sets update functions!
-  const initLive = await (await fetch("live.js")).text();
+  const initLive = await (await fetch("liveInit.ljs")).text();
   const cutoff = initLive.indexOf("// END INIT");
   onSocketMessage({
     source: "js",
@@ -165,7 +167,7 @@ function initThree() {
   const material = new THREE.MeshPhongMaterial({map: texture /*, transparent: true */});
 
   material.onBeforeCompile = (shader) => {
-    console.log(shader.fragmentShader);
+    // console.log(shader.fragmentShader);
     // This comes first in code => we'll use mapColor later.
     // prettier-ignore
     shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", `
