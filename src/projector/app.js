@@ -156,12 +156,13 @@ function initThree() {
   app.pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
   app.scene.add(app.pointLight);
 
-  // TODO: black 1x texture
   const textureLoader = new THREE.TextureLoader();
-  const texture = textureLoader.load("/data/ybart.png");
+  const texture = textureLoader.load("/data/black1px.png");
 
+  // TODO: Toggle "transparent" from code
+  // TODO: Add uniform for alpha
   const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
-  const material = new THREE.MeshPhongMaterial({map: texture, transparent: true});
+  const material = new THREE.MeshPhongMaterial({map: texture /*, transparent: true */});
 
   material.onBeforeCompile = (shader) => {
     console.log(shader.fragmentShader);
@@ -170,13 +171,14 @@ function initThree() {
     shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", `
 vec4 mapColor = texture2D( map, vMapUv );
 vec3 totalEmissiveRadiance;
-if (length(mapColor.rgb) > 0.3) totalEmissiveRadiance = mapColor.rgb * 0.5;
+float mapColorLength = length(mapColor.rgb);
+if (mapColorLength > 0.3) totalEmissiveRadiance = mapColor.rgb * 0.5;
 else totalEmissiveRadiance = emissive;
     `);
     // prettier-ignore
     shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
 float alpha = 1.0;
-if (length(mapColor.rgb) > 0.3) diffuseColor = mapColor;
+if (mapColorLength > 0.3) diffuseColor = mapColor;
 else { diffuseColor *= 0.9; alpha = 0.6; }
     `);
     // prettier-ignore
