@@ -126,9 +126,6 @@ function initThree() {
   app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   app.camPanGroup = new THREE.Group();
   app.camPanGroup.position.z = 50;
-  // app.camPanGroup.position.z = 25; // 50
-  // app.camPanGroup.position.x = 18.5; // DBG
-  // app.camPanGroup.position.y = -0.5; // DBG
   app.camPanGroup.add(app.camera);
   app.camAltitudeGroup = new THREE.Group();
   app.camAltitudeGroup.add(app.camPanGroup);
@@ -163,15 +160,10 @@ function initThree() {
   app.pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
   app.scene.add(app.pointLight);
 
-  // TODO: Toggle "transparent" from code
-  // TODO: Add uniform for alpha
   const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
-  const material = new THREE.MeshPhongMaterial({
-    map: app.txBlack,
-    // transparent: true,
-  });
+  const material = new THREE.MeshPhongMaterial({transparent: true});
 
-  CG.hackBlockForCodeTexture(geometry, material);
+  CG.hackBoxMaterial(geometry, material);
 
   app.mMask = new THREE.InstancedMesh(geometry, material, app.psys.count);
   app.mMask.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

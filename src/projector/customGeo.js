@@ -11,23 +11,14 @@ export async function loadTextureAsync(url) {
   });
 }
 
-export function hackBlockForCodeTexture(geo, mat) {
+export function hackBoxMaterial(geo, mat) {
   mat.onBeforeCompile = (shader) => {
-    // console.log(shader.fragmentShader);
     // This comes first in code => we'll use mapColor later.
     // prettier-ignore
-    shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", `
-vec4 mapColor = texture2D( map, vMapUv );
-vec3 totalEmissiveRadiance;
-float mapColorLength = length(mapColor.rgb);
-if (mapColorLength > 0.3) totalEmissiveRadiance = mapColor.rgb * 0.5;
-else totalEmissiveRadiance = emissive;
-    `);
-    // prettier-ignore
     shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
-float alpha = 1.0;
-if (mapColorLength > 0.3) diffuseColor = mapColor;
-else { diffuseColor *= 0.9; alpha = 0.6; }
+float alpha = 0.4;
+diffuseColor.rgb *= 2.0;
+// diffuseColor whatevs
     `);
     // prettier-ignore
     shader.fragmentShader = shader.fragmentShader.replace("#include <dithering_fragment>", `

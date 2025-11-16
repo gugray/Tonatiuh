@@ -1,0 +1,15 @@
+Reimplement:
+-- Age & return to mask in GPU animation
+-- BG flashing lines
+-- Twerk & size audio-reactivity
+-- ...
+
+New stuff:
+-- Right-size sails
+-- Faster HTML to canvas
+-- Traveling sails
+-- Scale boxes out/in at lifetime edges
+-- ?? Per-instance opacity attribute? Or just global?
+-- ?? Per-instance age attribute? -> Synaptic wave animation
+-- Lerping/easing parameters
+-- Gray god
