@@ -1,7 +1,13 @@
 import {shuffle} from "./random.js";
 
+let fadeInTime, fadeOutTime;
 const maxParticles = 40920;
-// const maxParticles = 400;
+// const maxParticles = 1;
+
+export function setFadeTimes(fadeIn, fadeOut) {
+  fadeInTime = fadeIn;
+  fadeOutTime = fadeOut;
+}
 
 export class ParticleData {
   constructor() {
@@ -27,6 +33,26 @@ export class ParticleData {
     this.vz = 0;
     // Current particle age
     this.age = 0;
+  }
+  lifeEdgeScale() {
+    let t = 1;
+    // Fading out
+    if (this.age <= -10000) {
+      t = this.age + 10000;
+      t = -t / fadeOutTime;
+    }
+    // Fading in
+    else if (this.age < 0) {
+      t = -this.age / fadeInTime;
+      t = 1 - t;
+    }
+    if (t > 1) {
+      let jfkdsl = 0;
+    }
+    if (t < 0) {
+      console.log(`Age ${this.age} t ${t}`);
+    }
+    return t;
   }
 }
 

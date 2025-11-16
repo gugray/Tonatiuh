@@ -5,20 +5,27 @@ uniform sampler2D txSurf;
 uniform sampler2D txPrev;
 uniform sampler2D txVelo;
 uniform float simSpeed;
+uniform float fadeInTime;
 uniform float dt;
 out vec4 outColor;
 
 void main() {
     vec4 velo = texelFetch(txVelo, ivec2(gl_FragCoord.xy), 0);
 
-    // Particle is being reset
+    // Particle starts fading in on mask's surface
     float age = velo.w;
-    if (velo.w <= -10000.0) {
-        outColor.a = -10000.0 - age;
+    if (abs(age + fadeInTime) < 1.) {
+        outColor.a = age;
         outColor.xyz = texelFetch(txSurf, ivec2(gl_FragCoord.xy), 0).xyz;
     }
     else {
-        outColor.a = age;
+        // Particle enters adulthood: jump ahead to random birth age
+        if (velo.w <= -20000.0) {
+            outColor.a = -20000.0 - age;
+        }
+        else {
+            outColor.a = age;
+        }
         vec4 prev = texelFetch(txPrev, ivec2(gl_FragCoord.xy), 0);
         outColor.xyz = prev.xyz + velo.xyz * simSpeed * dt * 0.1;
     }

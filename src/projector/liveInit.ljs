@@ -11,7 +11,7 @@ setUpdateInstances((app, cache, params, state) => {
   for (let i = 0; i < app.psys.count; ++i) {
     app.psys.getParticle(i, cache.prt);
     cache.obj.scale.set(1, 1, 1);
-    cache.obj.scale.x = cache.obj.scale.z = 1;
+    cache.obj.scale.multiplyScalar(cache.prt.lifeEdgeScale());
     cache.obj.position.set(
       cache.prt.cx * params.modelScale,
       cache.prt.cy * params.modelScale,

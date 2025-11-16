@@ -15,14 +15,17 @@ let txVelo, arrVelo, progiVelo;
 let txSurf;
 let txPos0, txPos1, arrPos, progiPosUpdate;
 
-let simFieldMul, simSpeed, maxAge;
+let simFieldMul, simSpeed;
+let stableAge, fadeInTime, fadeOutTime;
 let reset = 0;
 let lastUpdateTime = null;
 
 onmessage = (e) => {
   if ("simFieldMul" in e.data) simFieldMul = e.data.simFieldMul;
   if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
-  if ("maxAge" in e.data) maxAge = e.data.maxAge;
+  if ("stableAge" in e.data) stableAge = e.data.stableAge;
+  if ("fadeInTime" in e.data) fadeInTime = e.data.fadeInTime;
+  if ("fadeOutTime" in e.data) fadeOutTime = e.data.fadeOutTime;
   if ("reset" in e.data) reset = 1;
   if (e.data.modelBuffer) {
     init(e.data.modelBuffer, e.data.simBuffer, e.data.simCanvas);
@@ -97,14 +100,6 @@ function createDataTexture(sz, initFrom) {
 function updateParticle(i, dt) {
   psys.getParticle(i, prt);
 
-  // let ageLimitRatio = prt.age / maxAge;
-  // if (ageLimitRatio > Math.random() + 0.5) {
-  //   prt.age = Math.round((Math.random() - 0.5) * maxAge);
-  //   prt.cx = prt.mx;
-  //   prt.cy = prt.my;
-  //   prt.cz = prt.mz;
-  // }
-
   prt.vx = arrVelo[i * 4];
   prt.vy = arrVelo[i * 4 + 1];
   prt.vz = arrVelo[i * 4 + 2];
@@ -118,10 +113,11 @@ function updateParticle(i, dt) {
 }
 
 function updateSimulation(dt) {
-  //     0 < age           is what it is
-  // -2000 < age < 0       slated to reset; vanishing
-  //         age < -10000  set in calc-velo. tells calc-pos to reset to surface,
-  //                       and store random starting age
+  // Age is set in calc-velo
+  //      0 < age           is what it is
+  //  -9000 < age < 0       fading in
+  // -19000 < age < -10000  fading out after stable life, until hitting -10000
+  //          age < -20000  tells calc-pos to reset to surface store random starting age
   // First pass checks age, and decides if particle resets (age goes positive now)
   // Based on this, it gets velocity from noise field:
   // -- current position, or
@@ -130,15 +126,15 @@ function updateSimulation(dt) {
   // Second pass adds velo to pos, or resets pos to surface
   // It copies age (or takes new random age)
 
-  // TODO: vanishing time as a uniform
-
   // Update velocities
   const unisVelo = {
     sz: szDataTexture,
     txSurf: txSurf,
     txPos: txPos0,
     simFieldMul: simFieldMul,
-    maxAge: maxAge,
+    stableAge: stableAge,
+    fadeInTime: fadeInTime,
+    fadeOutTime: fadeOutTime,
     dt: dt,
     rand: rand(),
   };
@@ -163,6 +159,7 @@ function updateSimulation(dt) {
     txPrev: txPos0,
     txVelo: txVelo,
     simSpeed: simSpeed * 1, // TODO DBG
+    fadeInTime: fadeInTime,
     dt: dt,
   };
   let atmsPosU = [{attachment: txPos1}];

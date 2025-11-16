@@ -1,6 +1,6 @@
-import {mulberry32, setRandomGenerator} from "./random.js";
+import {mulberry32, setRandomGenerator, rand} from "./random.js";
 import {initReceiver} from "./receiver.js";
-import {loadModelFromPLY, ParticleData} from "./particleSystem.js";
+import {loadModelFromPLY, ParticleData, setFadeTimes} from "./particleSystem.js";
 import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated, setTidalOffscreen} from "./audioLayer.js";
 import {Sail} from "./sail.js";
 import * as CG from "./customGeo.js";
@@ -12,6 +12,9 @@ const tidalLiveSocketUrl = "https://liverelay.aka-gabor.xyz/relay";
 // const tidalLiveSocketUrl = null;
 const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
 // const jsLiveSocketUrl = "ws://localhost:8090/relay";
+
+const fadeInTime = 1000; // max 9000
+const fadeOutTime = 2000; // max 9000
 
 const app = {
   psys: null,
@@ -33,8 +36,8 @@ const params = {
   modelScale: 36,
   preserveBuffer: false,
   simFieldMul: 2.5, // 2.5 for original
-  simSpeed: 0.0001, // 0.001
-  maxAge: 50000,
+  simSpeed: 0.0005, // 0.001
+  stableAge: 25000,
   camRotThrust: 0.0005, // 0.0005
   camPanThrust: 0.01, // 0.01
   updateInstances: null,
@@ -67,10 +70,11 @@ async function initApp() {
 
   // Init particle system from model
   const rot = new THREE.Matrix4().makeRotationY(Math.PI * 0.5);
+  setFadeTimes(fadeInTime, fadeOutTime);
   app.psys = await loadModelFromPLY(THREE, modelUrl, rot);
   app.psys.putAllOnModel();
   for (let ix = 0; ix < app.psys.count; ++ix) {
-    app.psys.setParticleAge(ix, Math.floor(params.maxAge * Math.random()));
+    app.psys.setParticleAge(ix, params.stableAge * rand());
   }
 
   // GPU particle system updater in worker thread
@@ -83,7 +87,9 @@ async function initApp() {
       simBuffer: app.psys.simBuffer,
       simFieldMul: params.simFieldMul,
       simSpeed: params.simSpeed,
-      maxAge: params.maxAge,
+      stableAge: params.stableAge,
+      fadeInTime: fadeInTime,
+      fadeOutTime: fadeOutTime,
     },
     [simCanvas],
   );

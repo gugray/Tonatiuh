@@ -14,10 +14,13 @@ OK Faster HTML to canvas
 -- Audioreactivity?
 
 New stuff:
--- Scale boxes out/in at lifetime edges
+OK Scale boxes out/in at lifetime edges
 -- ?? Per-instance opacity attribute? Or just global?
 -- ?? Per-instance age attribute? -> Synaptic wave animation
 -- Lerping/easing parameters
 -- Gray god
 -- More point lights; show them for dev
 -- Eased animated return to mask
+-- ?? Bloom effect
+-- ?? Fixed or rotating stars; twinkle; expand out
+-- ?? Vignette; faint background

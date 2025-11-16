@@ -7,7 +7,9 @@ precision highp float;
 uniform sampler2D txSurf;
 uniform sampler2D txPos;
 uniform float simFieldMul;
-uniform float maxAge;
+uniform float stableAge;
+uniform float fadeInTime;
+uniform float fadeOutTime;
 uniform float dt;
 uniform float rand;
 out vec4 outColor;
@@ -17,16 +19,24 @@ void main() {
     vec3 pos = data.xyz;
     float age = data.w;
 
-    // Particle exceeds age? Go to vanishing
-    if (age > maxAge - 2000.0) {
-        age = max(age - maxAge, -2000.0);
+    // Particle exceeds age? Go to fade-out
+    if (age > stableAge) {
+        age = -10000.0 - fadeOutTime;
     }
-    // Particle vanishing
+    // Particle fading in
+    else if (age < 0.0 && age > -9100.0) {
+        age += dt;
+        // Finished fading in: determine random age
+        if (age > 0.0) {
+            float birthAge = stableAge * gold_noise(gl_FragCoord.xy, rand) * 0.9;
+        }
+    }
+    // Particle fading out (-19100 < age < -10000
     else if (age < 0.0) {
         age += dt;
-        // Finished vanishing: calculate velocity at reset position
-        if (age >= 0.0) {
-            age = -10000.0 - maxAge * gold_noise(gl_FragCoord.xy, rand);
+        // Faded out: start fading in at mask surface
+        if (age > -10000.0) {
+            age = -fadeInTime;
             pos = texelFetch(txSurf, ivec2(gl_FragCoord.xy), 0).xyz;
         }
     }
