@@ -2,29 +2,32 @@ import * as twgl from "twgl.js";
 import sSweepVert from "./shaders/sweep-vert.glsl";
 import sCalcPosFrag from "./shaders/calc-mask-pos.glsl";
 import sCalcVeloFrag from "./shaders/calc-mask-velo.glsl";
+import {mulberry32} from "./random.js";
 import {ParticleSystem, ParticleData} from "./particleSystem.js";
 
+const rand = mulberry32(0);
 const prt = new ParticleData();
 
 let psys;
 let gl, sweepArrays, sweepBufferInfo, simArrays, simBufferInfo;
 let szDataTexture;
 let txVelo, arrVelo, progiVelo;
+let txSurf;
 let txPos0, txPos1, arrPos, progiPosUpdate;
 
 let simFieldMul, simSpeed, maxAge;
+let reset = 0;
 let lastUpdateTime = null;
 
 onmessage = (e) => {
-  if (e.data.modelBuffer) {
-    init(e.data.modelBuffer, e.data.simBuffer, e.data.simCanvas);
-  }
   if ("simFieldMul" in e.data) simFieldMul = e.data.simFieldMul;
   if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
   if ("maxAge" in e.data) maxAge = e.data.maxAge;
-  if ("oneTimeReset" in e.data) reset(e.data.oneTimeReset);
-
-  updateLoop();
+  if ("reset" in e.data) reset = 1;
+  if (e.data.modelBuffer) {
+    init(e.data.modelBuffer, e.data.simBuffer, e.data.simCanvas);
+    updateLoop();
+  }
 };
 
 function init(modelBuffer, simBuffer, simCanvas) {
@@ -44,8 +47,11 @@ function init(modelBuffer, simBuffer, simCanvas) {
   // Data texture size: this many vec4's
   szDataTexture = Math.ceil(Math.sqrt(psys.count));
 
+  // Single data texture for mask positions
+  [_, txSurf] = createDataTexture(szDataTexture, "pos_age");
+
   // Single data texture for velocity
-  [arrVelo, txVelo] = createDataTexture(szDataTexture, "normal");
+  [arrVelo, txVelo] = createDataTexture(szDataTexture, "normal_age");
 
   // Pingpong data textures for position
   // Simulation has 4 values per particle: cx, cy, cz, age => vec4
@@ -67,11 +73,11 @@ function createDataTexture(sz, initFrom) {
       data[i * 4 + 2] = prt.mz;
       data[i * 4 + 3] = prt.age;
     } //
-    else if (initFrom == "normal") {
+    else if (initFrom == "normal_age") {
       data[i * 4] = prt.nx;
       data[i * 4 + 1] = prt.ny;
       data[i * 4 + 2] = prt.nz;
-      data[i * 4 + 3] = 0;
+      data[i * 4 + 3] = prt.age;
     } //
     else {
       data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = data[i * 4 + 3] = 0;
@@ -90,20 +96,6 @@ function createDataTexture(sz, initFrom) {
 
 function updateParticle(i, dt) {
   psys.getParticle(i, prt);
-
-  // let curl = simplex3curl(prt.cx * simFieldMul, prt.cy * simFieldMul, prt.cz * simFieldMul);
-  // if (curl[0] != curl[0] || curl[1] != curl[1] || curl[2] != curl[2]) {
-  //   curl = [0, 0, 0];
-  // }
-  // prt.vx = simSpeed * curl[0];
-  // prt.vy = simSpeed * curl[1];
-  // prt.vz = simSpeed * curl[2];
-  // prt.cx += prt.vx;
-  // prt.cy += prt.vy;
-  // prt.cz += prt.vz;
-  // prt.age += dt;
-  // psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.vx, prt.vy, prt.vz, prt.age);
-  // return;
 
   // let ageLimitRatio = prt.age / maxAge;
   // if (ageLimitRatio > Math.random() + 0.5) {
@@ -125,31 +117,30 @@ function updateParticle(i, dt) {
   psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.vx, prt.vy, prt.vz, prt.age);
 }
 
-function reset(kind) {
-  let updatePt;
-  if (kind == "model") {
-    updatePt = (i) => {
-      psys.getParticle(i, prt);
-      prt.age = Math.round((Math.random() - 0.5) * maxAge);
-      prt.cx = prt.mx;
-      prt.cy = prt.my;
-      prt.cz = prt.mz;
-      psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.age);
-    };
-  } //
-  else return;
-  for (let i = 0; i < psys.count; ++i) {
-    updatePt(i);
-  }
-}
-
 function updateSimulation(dt) {
+  //     0 < age           is what it is
+  // -2000 < age < 0       slated to reset; vanishing
+  //         age < -10000  set in calc-velo. tells calc-pos to reset to surface,
+  //                       and store random starting age
+  // First pass checks age, and decides if particle resets (age goes positive now)
+  // Based on this, it gets velocity from noise field:
+  // -- current position, or
+  // -- surface position (after reset)
+  // If just reset, sets age to -10000 - maxAge => this encodes new random age
+  // Second pass adds velo to pos, or resets pos to surface
+  // It copies age (or takes new random age)
+
+  // TODO: vanishing time as a uniform
+
   // Update velocities
   const unisVelo = {
     sz: szDataTexture,
+    txSurf: txSurf,
     txPos: txPos0,
     simFieldMul: simFieldMul,
+    maxAge: maxAge,
     dt: dt,
+    rand: rand(),
   };
   let atmsVelo = [{attachment: txVelo}];
   let fbuVelo = twgl.createFramebufferInfo(gl, atmsVelo, szDataTexture, szDataTexture);
@@ -168,9 +159,10 @@ function updateSimulation(dt) {
   // Update positions: always tx0 => tx1
   const unisPosUpdate = {
     sz: szDataTexture,
+    txSurf: txSurf,
     txPrev: txPos0,
     txVelo: txVelo,
-    simSpeed: simSpeed * 0.3, // TODO DBG
+    simSpeed: simSpeed * 1, // TODO DBG
     dt: dt,
   };
   let atmsPosU = [{attachment: txPos1}];
@@ -188,6 +180,9 @@ function updateSimulation(dt) {
 
   // Swap texture references for next round
   [txPos0, txPos1] = [txPos1, txPos0];
+
+  // Clear reset
+  reset = 0;
 }
 
 function updateLoop() {

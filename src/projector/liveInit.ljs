@@ -6,8 +6,8 @@ params.maxAge = 24000;
 
 setUpdateInstances((app, cache, params, state) => {
   app.mMask.geometry.rotateY(0.01);
-  const pointTo = "surface";
-  // const pointTo = "field";
+  // const pointTo = "surface";
+  const pointTo = "field";
   for (let i = 0; i < app.psys.count; ++i) {
     app.psys.getParticle(i, cache.prt);
     cache.obj.scale.set(1, 1, 1);

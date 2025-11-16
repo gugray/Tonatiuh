@@ -1,8 +1,9 @@
 Reimplement:
--- Age & return to mask in GPU animation
--- BG flashing lines
--- Twerk & size audio-reactivity
+OK Age & return to mask in GPU animation
 -- Message worker when simFieldMul, simSpeed etc. change
+-- Set box colors only once
+-- BG flashing lines
+-- Wiggle & size audio-reactivity
 -- ...
 
 Sail innovations:
@@ -19,3 +20,4 @@ New stuff:
 -- Lerping/easing parameters
 -- Gray god
 -- More point lights; show them for dev
+-- Eased animated return to mask

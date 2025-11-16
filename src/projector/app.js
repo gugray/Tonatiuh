@@ -34,7 +34,7 @@ const params = {
   preserveBuffer: false,
   simFieldMul: 2.5, // 2.5 for original
   simSpeed: 0.0001, // 0.001
-  maxAge: 24000,
+  maxAge: 50000,
   camRotThrust: 0.0005, // 0.0005
   camPanThrust: 0.01, // 0.01
   updateInstances: null,
