@@ -13,3 +13,4 @@ New stuff:
 -- ?? Per-instance age attribute? -> Synaptic wave animation
 -- Lerping/easing parameters
 -- Gray god
+-- More point lights; show them for dev
