@@ -1,15 +1,17 @@
 import {mulberry32, setRandomGenerator} from "./random.js";
 import {initReceiver} from "./receiver.js";
 import {loadModelFromPLY, ParticleData} from "./particleSystem.js";
-import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated} from "./audioLayer.js";
+import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated, setTidalOffscreen} from "./audioLayer.js";
+import {Sail} from "./sail.js";
+import * as CG from "./customGeo.js";
 import * as THREE from "three";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
-// const tidalLiveSocketUrl = "https://liverelay.aka-gabor.xyz/relay";
-const tidalLiveSocketUrl = null;
-// const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
-const jsLiveSocketUrl = "ws://localhost:8090/relay";
+const tidalLiveSocketUrl = "https://liverelay.aka-gabor.xyz/relay";
+// const tidalLiveSocketUrl = null;
+const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
+// const jsLiveSocketUrl = "ws://localhost:8090/relay";
 
 const app = {
   psys: null,
@@ -17,6 +19,9 @@ const app = {
   scene: null,
   camera: null,
   renderer: null,
+  txBlack: null,
+  mMask: null,
+  sails: [],
   camPanGroup: null,
   camAltitudeGroup: null,
   camAzimuthGroup: null,
@@ -83,6 +88,8 @@ async function initApp() {
     [simCanvas],
   );
 
+  app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
+
   initThree();
   initEvents();
   initReceiver(jsLiveSocketUrl, onSocketMessage);
@@ -101,18 +108,24 @@ async function initApp() {
   // Start the movie
   animate();
 
+  // setTidalOffscreen(true);
   // setTimeout(() => {
   //   fillTidalSamples();
-  // }, 1000);
-  // onTidalCanvasUpdated((canvas) => {
-  //   const texture = new THREE.CanvasTexture(canvas);
-  //   if (app.mesh.material.map) {
-  //     app.mesh.material.map.dispose();
-  //     app.mesh.material.map = null;
-  //   }
-  //   app.mesh.material.map = texture;
-  //   app.mesh.material.needsUpdate = true;
-  // });
+  // }, 500);
+  onTidalCanvasUpdated((canvas) => {
+    const texture = new THREE.CanvasTexture(canvas);
+    // if (app.mMask.material.map) {
+    //   app.mMask.material.map.dispose();
+    //   app.mMask.material.map = null;
+    // }
+    // app.mMask.material.map = texture;
+    // app.mMask.material.needsUpdate = true;
+    const sail = new Sail(180, 60, 1.8, 0.6, app.txBlack);
+    // const sail = new Sail(180, 10, 1.8, 0.1, app.txBlack);
+    // sail.setTexture(texture);
+    // app.scene.add(sail.mesh);
+    // app.sails.push(sail);
+  });
 }
 
 function initThree() {
@@ -158,53 +171,19 @@ function initThree() {
   app.pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
   app.scene.add(app.pointLight);
 
-  const textureLoader = new THREE.TextureLoader();
-  const texture = textureLoader.load("/data/black1px.png");
-
   // TODO: Toggle "transparent" from code
   // TODO: Add uniform for alpha
-  const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
-  const material = new THREE.MeshPhongMaterial({map: texture /*, transparent: true */});
+  const geometry = new THREE.BoxGeometry(0.6, 0.1, 0.6);
+  const material = new THREE.MeshPhongMaterial({
+    map: app.txBlack,
+    // transparent: true,
+  });
 
-  material.onBeforeCompile = (shader) => {
-    // console.log(shader.fragmentShader);
-    // This comes first in code => we'll use mapColor later.
-    // prettier-ignore
-    shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", `
-vec4 mapColor = texture2D( map, vMapUv );
-vec3 totalEmissiveRadiance;
-float mapColorLength = length(mapColor.rgb);
-if (mapColorLength > 0.3) totalEmissiveRadiance = mapColor.rgb * 0.5;
-else totalEmissiveRadiance = emissive;
-    `);
-    // prettier-ignore
-    shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
-float alpha = 1.0;
-if (mapColorLength > 0.3) diffuseColor = mapColor;
-else { diffuseColor *= 0.9; alpha = 0.6; }
-    `);
-    // prettier-ignore
-    shader.fragmentShader = shader.fragmentShader.replace("#include <dithering_fragment>", `
-#include <dithering_fragment>
-gl_FragColor.a = alpha;
-    `);
-  };
+  CG.hackBlockForCodeTexture(geometry, material);
 
-  const uvAttribute = geometry.getAttribute("uv");
-  // prettier-ignore
-  const uvMap = [
-    0, 0.75, 0, 1, 1, 0.75, 1, 1,
-    0, 0.25, 0, 0.5, 1, 0.25, 1, 0.5,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0.5, 0, 0.75, 1, 0.5, 1, 0.75,
-    0, 0, 0, 0.25, 1, 0, 1, 0.25,
-  ];
-  for (let i = 0; i < 24; ++i) uvAttribute.setXY(i, uvMap[2 * i], uvMap[2 * i + 1]);
-
-  app.mesh = new THREE.InstancedMesh(geometry, material, app.psys.count);
-  app.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  app.scene.add(app.mesh);
+  app.mMask = new THREE.InstancedMesh(geometry, material, app.psys.count);
+  app.mMask.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  app.scene.add(app.mMask);
 }
 
 function onWindowResize() {
@@ -270,12 +249,29 @@ function updateCam() {
 
 function animate() {
   const now = Date.now();
-  state.time += now - state.lastTime;
+  const dt = now - state.lastTime;
+  state.time += dt;
   state.lastTime = now;
 
   updateCam();
   updatePointLight(app, cache, params, state);
   params.updateInstances(app, cache, params, state);
+
+  const sailsToRemove = [];
+  for (const sail of app.sails) {
+    if (sail.age > 10000) {
+      app.scene.remove(sail.mesh);
+      // TODO: dispose
+      sailsToRemove.push(sail);
+      continue;
+    }
+    sail.updatePositions(dt);
+    sail.updateGeometry();
+  }
+  for (const s of sailsToRemove) {
+    const ix = app.sails.indexOf(s);
+    app.sails.splice(ix, 1);
+  }
 
   app.renderer.clear();
   app.renderer.render(app.scene, app.camera);
@@ -305,7 +301,7 @@ function onSocketMessage(data) {
   }
   // Tidal: display in overlay
   else if (data.source == "tidal") {
-    tidalUpdate(data.content);
+    tidalUpdate(data.content, true);
   }
 }
 

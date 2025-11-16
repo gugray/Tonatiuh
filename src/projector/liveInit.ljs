@@ -5,9 +5,9 @@ params.simSpeed = 0.001;
 params.maxAge = 24000;
 
 setUpdateInstances((app, cache, params, state) => {
-  app.mesh.geometry.rotateY(0.01);
-  // const pointTo = "surface";
-  const pointTo = "field";
+  app.mMask.geometry.rotateY(0.01);
+  const pointTo = "surface";
+  // const pointTo = "field";
   for (let i = 0; i < app.psys.count; ++i) {
     app.psys.getParticle(i, cache.prt);
     cache.obj.scale.set(1, 1, 1);
@@ -28,13 +28,13 @@ setUpdateInstances((app, cache, params, state) => {
     }
     cache.obj.quaternion.setFromUnitVectors(cache.unitY, cache.dir);
     cache.obj.updateMatrix();
-    app.mesh.setMatrixAt(i, cache.obj.matrix);
-    cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
-    app.mesh.setColorAt(i, cache.clr);
+    app.mMask.setMatrixAt(i, cache.obj.matrix);
+    // cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
+    app.mMask.setColorAt(i, cache.clr);
   }
-  app.mesh.material.opacity = 1.0;
-  app.mesh.instanceMatrix.needsUpdate = true;
-  app.mesh.computeBoundingSphere();
+  app.mMask.material.opacity = 1.0;
+  app.mMask.instanceMatrix.needsUpdate = true;
+  app.mMask.computeBoundingSphere();
 });
 
 // END INIT

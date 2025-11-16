@@ -42,6 +42,11 @@ export function onTidalCanvasUpdated(fun) {
   onTidalCanvasUpdatedFun = fun;
 }
 
+export function setTidalOffscreen(val) {
+  if (val) elmFixedCode.classList.add("offscreen");
+  else elmFixedCode.classList.remove("offscreen");
+}
+
 export function fillTidalSamples() {
   let i = 0;
   update();

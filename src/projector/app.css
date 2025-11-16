@@ -61,6 +61,7 @@ main { height: 100%; width: 100%; }
 
 #fixedCode {
   position: absolute; top: 50px; left: 50px; bottom: 50px; overflow-y: hidden;
+  &.offscreen { left: -2000px; }
   font-size: 90%;
   & p {
     position: relative; float: left; clear: both;
@@ -74,7 +75,8 @@ main { height: 100%; width: 100%; }
   }
 }
 .audioCode {
-  & .token.comment { color: #acb4ab; font-style: normal; }
+  /*& .token.comment { color: #acb4ab; font-style: normal; }*/
+  & .token.comment { color: #74985d; font-style: normal; }
   & .token.string { color: #90ab87; }
   & .token.punctuation { color: #9c978f; }
   & .token.number { color: #b5a2ac; }
