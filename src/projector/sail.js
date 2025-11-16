@@ -6,16 +6,23 @@ const simFieldMul = 1;
 const simSpeed = 0.00001;
 
 noise.seed(0);
-let renderOrder = 10000;
+let renderOrder = 1000;
 
 export class Sail {
-  constructor(nHoriz, nVert, szHoriz, szVert, tx, lifeTime) {
+  constructor(tx, w, h, lifeTime) {
+    const szHoriz = 1;
+    const szVert = h / w;
+    const nHoriz = Math.round(w / 5);
+    const nVert = Math.round(h / 5);
+
+    console.log(`Sail ${szHoriz} x ${szVert} pixels => ${nHoriz} x ${nVert} segments`);
+
     this.nVerts = (nHoriz + 1) * (nVert + 1);
     // Shared array buffer with vertex positions
     this.sarrBuf = initPositions(nHoriz, nVert, szHoriz, szVert);
     // Geometry
     this.mesh = makeCodeSailMesh(tx, nHoriz, nVert, new Float32Array(this.sarrBuf));
-    this.mesh.scale.set(20, 20, 20);
+    this.mesh.scale.set(w / 20, w / 20, 1);
     this.mesh.position.z = 13;
     this.mesh.material.map = tx;
     this.mesh.material.needsUpdate = true;
@@ -173,7 +180,7 @@ function makeCodeSailMesh(txBlack, nHoriz, nVert, posArr) {
   hackSailForCodeTexture(mat);
 
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.renderOrder = renderOrder--;
+  mesh.renderOrder = renderOrder++;
   return mesh;
 }
 

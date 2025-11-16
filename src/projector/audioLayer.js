@@ -1,6 +1,6 @@
 import Prism from "prismjs";
 import "prismjs/components/prism-haskell.js";
-import html2canvas from "html2canvas";
+import {snapdom} from "@zumer/snapdom";
 
 const reTidalDef1 = new RegExp("^(d\\d+)");
 const reTidalDef2 = new RegExp("\\s(d\\d+)");
@@ -75,10 +75,15 @@ export function tidalUpdate(codeStr, renderBitmap) {
 
   // Create a clone here; render to bitmap, don't wait
   if (renderBitmap) {
-    html2canvas(elm, {backgroundColor: null}).then((canvas) => {
+    snapdom(elm).then(async (res) => {
+      setTimeout(() => flash(0), 0);
+      const canvas = await res.toCanvas();
       if (onTidalCanvasUpdatedFun) onTidalCanvasUpdatedFun(canvas);
-      flash(0);
     });
+    // html2canvas(elm, {backgroundColor: null}).then((canvas) => {
+    //   if (onTidalCanvasUpdatedFun) onTidalCanvasUpdatedFun(canvas);
+    //   flash(0);
+    // });
   }
   // If not rendering to texture, flash now
   else {

@@ -11,7 +11,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "html2canvas": "^1.4.1",
+    "@zumer/snapdom": "^1.9.14",
     "prismjs": "^1.30.0",
     "three": "^0.157.0",
     "twgl.js": "^7.0.0",

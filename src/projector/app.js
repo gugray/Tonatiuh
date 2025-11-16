@@ -33,7 +33,7 @@ const params = {
   modelScale: 36,
   preserveBuffer: false,
   simFieldMul: 2.5, // 2.5 for original
-  simSpeed: 0.001,
+  simSpeed: 0.0001, // 0.001
   maxAge: 24000,
   camRotThrust: 0.0005, // 0.0005
   camPanThrust: 0.01, // 0.01
@@ -108,13 +108,14 @@ async function initApp() {
   // Start the movie
   animate();
 
-  // setTidalOffscreen(true);
+  setTidalOffscreen(true);
   // setTimeout(() => {
   //   fillTidalSamples();
   // }, 500);
   onTidalCanvasUpdated((canvas) => {
     const tx = new THREE.CanvasTexture(canvas);
-    const sail = new Sail(180, 60, 1.8, 0.6, tx, 8000);
+    // const sail = new Sail(180, 60, 1.8, 0.6, tx, 8000);
+    const sail = new Sail(tx, canvas.width, canvas.height, 8000);
     app.scene.add(sail.mesh);
     app.sails.push(sail);
   });

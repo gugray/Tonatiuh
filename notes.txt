@@ -2,12 +2,17 @@ Reimplement:
 -- Age & return to mask in GPU animation
 -- BG flashing lines
 -- Twerk & size audio-reactivity
+-- Message worker when simFieldMul, simSpeed etc. change
 -- ...
 
-New stuff:
--- Right-size sails
--- Faster HTML to canvas
+Sail innovations:
+OK Right-size sails
+OK Faster HTML to canvas
 -- Traveling sails
+-- Rolling sine wave
+-- Audioreactivity?
+
+New stuff:
 -- Scale boxes out/in at lifetime edges
 -- ?? Per-instance opacity attribute? Or just global?
 -- ?? Per-instance age attribute? -> Synaptic wave animation
