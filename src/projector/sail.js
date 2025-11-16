@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import * as CG from "./customGeo.js";
 import * as noise from "./noise.js";
 import {simplex3curl} from "./curl.js";
 
@@ -10,7 +9,7 @@ noise.seed(0);
 let renderOrder = 10000;
 
 export class Sail {
-  constructor(nHoriz, nVert, szHoriz, szVert, tx) {
+  constructor(nHoriz, nVert, szHoriz, szVert, tx, lifeTime) {
     this.nVerts = (nHoriz + 1) * (nVert + 1);
     // Shared array buffer with vertex positions
     this.sarrBuf = initPositions(nHoriz, nVert, szHoriz, szVert);
@@ -34,6 +33,8 @@ export class Sail {
     );
     // We're young
     this.age = 0;
+    this.lifeTime = lifeTime;
+    this.isOver = false;
   }
 
   updatePositions(dt) {
@@ -56,7 +57,13 @@ export class Sail {
     this.age += dt;
   }
 
-  updateGeometry() {
+  update(dt) {
+    this.age += dt;
+    if (this.age > this.lifeTime) {
+      this.isOver = true;
+      this.updater.postMessage({});
+      return;
+    }
     const posAttribute = this.mesh.geometry.getAttribute("position");
     const trgArr = posAttribute.array;
     const posArr = new Float32Array(this.sarrBuf);
@@ -65,6 +72,25 @@ export class Sail {
     }
     posAttribute.needsUpdate = true;
     this.mesh.geometry.computeVertexNormals();
+
+    // Update strength via our custom uniform
+    const easeInMsec = 400;
+    // Ease in quickly
+    let strength;
+    if (this.age <= easeInMsec) {
+      let t = this.age / easeInMsec;
+      strength = t * t;
+    }
+    // Ease out over full lifetime
+    else {
+      let t = (this.age - easeInMsec) / (this.lifeTime - easeInMsec);
+      strength = (1 - t) * (1 - t);
+    }
+    if (strength > 1) strength = 1;
+    else if (strength < 0) strength = 0;
+    if (this.mesh.material.userData.hasOwnProperty("strength")) {
+      this.mesh.material.userData.strength.value = strength;
+    }
   }
 }
 
@@ -144,9 +170,37 @@ function makeCodeSailMesh(txBlack, nHoriz, nVert, posArr) {
     depthTest: true,
   });
 
-  CG.hackSailForCodeTexture(mat);
+  hackSailForCodeTexture(mat);
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = renderOrder--;
   return mesh;
+}
+
+function hackSailForCodeTexture(mat) {
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.strength = {value: 0};
+    mat.userData.strength = shader.uniforms.strength;
+    // This comes first in code => we'll use mapColor later.
+    shader.fragmentShader = "uniform float strength;\n" + shader.fragmentShader;
+    // prettier-ignore
+    shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", `
+vec4 mapColor = texture2D( map, vMapUv );
+vec3 totalEmissiveRadiance;
+float mapColorLength = length(mapColor.rgb);
+if (mapColorLength > 0.3) totalEmissiveRadiance = mapColor.rgb * strength;
+else totalEmissiveRadiance = emissive;
+    `);
+    // prettier-ignore
+    shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
+float alpha = 1.0;
+if (mapColorLength > 0.3) diffuseColor = mapColor * strength;
+else { diffuseColor.rgb = vec3(0.); alpha = 0.6 * strength; }
+    `);
+    // prettier-ignore
+    shader.fragmentShader = shader.fragmentShader.replace("#include <dithering_fragment>", `
+#include <dithering_fragment>
+gl_FragColor.a = alpha;
+    `);
+  };
 }

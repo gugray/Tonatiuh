@@ -48,29 +48,3 @@ gl_FragColor.a = alpha;
   ];
   for (let i = 0; i < 24; ++i) uvAttribute.setXY(i, uvMap[2 * i], uvMap[2 * i + 1]);
 }
-
-export function hackSailForCodeTexture(mat) {
-  mat.onBeforeCompile = (shader) => {
-    // console.log(shader.fragmentShader);
-    // This comes first in code => we'll use mapColor later.
-    // prettier-ignore
-    shader.fragmentShader = shader.fragmentShader.replace("vec3 totalEmissiveRadiance = emissive;", `
-vec4 mapColor = texture2D( map, vMapUv );
-vec3 totalEmissiveRadiance;
-float mapColorLength = length(mapColor.rgb);
-if (mapColorLength > 0.3) totalEmissiveRadiance = mapColor.rgb * 1.;
-else totalEmissiveRadiance = emissive;
-    `);
-    // prettier-ignore
-    shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
-float alpha = 1.0;
-if (mapColorLength > 0.3) diffuseColor = mapColor;
-else { diffuseColor.rgb = vec3(0.); alpha = 0.6; }
-    `);
-    // prettier-ignore
-    shader.fragmentShader = shader.fragmentShader.replace("#include <dithering_fragment>", `
-#include <dithering_fragment>
-gl_FragColor.a = alpha;
-    `);
-  };
-}

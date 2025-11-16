@@ -113,15 +113,8 @@ async function initApp() {
   //   fillTidalSamples();
   // }, 500);
   onTidalCanvasUpdated((canvas) => {
-    const texture = new THREE.CanvasTexture(canvas);
-    // if (app.mMask.material.map) {
-    //   app.mMask.material.map.dispose();
-    //   app.mMask.material.map = null;
-    // }
-    // app.mMask.material.map = texture;
-    // app.mMask.material.needsUpdate = true;
-    const sail = new Sail(180, 60, 1.8, 0.6, texture);
-    // const sail = new Sail(180, 10, 1.8, 0.1, texture);
+    const tx = new THREE.CanvasTexture(canvas);
+    const sail = new Sail(180, 60, 1.8, 0.6, tx, 8000);
     app.scene.add(sail.mesh);
     app.sails.push(sail);
   });
@@ -246,6 +239,21 @@ function updateCam() {
   if (Math.abs(state.camPanSpeed.z) < 0.0001) state.camPanSpeed.z = 0;
 }
 
+function updateSails(dt) {
+  const toRemove = [];
+  for (const sail of app.sails) {
+    if (sail.isOver) toRemove.push(sail);
+    else sail.update(dt);
+  }
+  for (const s of toRemove) {
+    const ix = app.sails.indexOf(s);
+    app.sails.splice(ix, 1);
+    app.scene.remove(s.mesh);
+    s.mesh.material.dispose();
+    s.mesh.geometry.dispose();
+  }
+}
+
 function animate() {
   const now = Date.now();
   const dt = now - state.lastTime;
@@ -254,23 +262,8 @@ function animate() {
 
   updateCam();
   updatePointLight(app, cache, params, state);
+  updateSails(dt);
   params.updateInstances(app, cache, params, state);
-
-  const sailsToRemove = [];
-  for (const sail of app.sails) {
-    if (sail.age > 10000) {
-      app.scene.remove(sail.mesh);
-      // TODO: dispose
-      sailsToRemove.push(sail);
-      continue;
-    }
-    // sail.updatePositions(dt);
-    sail.updateGeometry();
-  }
-  for (const s of sailsToRemove) {
-    const ix = app.sails.indexOf(s);
-    app.sails.splice(ix, 1);
-  }
 
   app.renderer.clear();
   app.renderer.render(app.scene, app.camera);

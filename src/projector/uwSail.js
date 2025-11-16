@@ -121,9 +121,17 @@ function updateLoop() {
   const elapsed = t1 - lastUpdateTime;
   lastUpdateTime = t0;
 
-  if (quit) close();
-  else {
+  if (!quit) {
     let wait = elapsed > 15 ? 0 : 15 - elapsed;
     setTimeout(updateLoop, wait);
+  } else {
+    gl.deleteTexture(txPos0);
+    gl.deleteTexture(txPos1);
+    for (const key in sweepBufferInfo.attribs) gl.deleteBuffer(sweepBufferInfo.attribs[key].buffer);
+    gl.deleteBuffer(sweepBufferInfo.indices);
+    for (const key in simBufferInfo.attribs) gl.deleteBuffer(simBufferInfo.attribs[key].buffer);
+    if (simBufferInfo.indices) gl.deleteBuffer(simBufferInfo.indices);
+    gl.deleteProgram(progiPosUpdate.program);
+    close();
   }
 }
