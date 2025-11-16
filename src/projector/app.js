@@ -75,7 +75,7 @@ async function initApp() {
 
   // GPU particle system updater in worker thread
   const simCanvas = document.createElement("canvas").transferControlToOffscreen();
-  app.updater = new Worker("updateWorker.js");
+  app.updater = new Worker("uwMask.js");
   app.updater.postMessage(
     {
       simCanvas: simCanvas,
@@ -120,11 +120,10 @@ async function initApp() {
     // }
     // app.mMask.material.map = texture;
     // app.mMask.material.needsUpdate = true;
-    const sail = new Sail(180, 60, 1.8, 0.6, app.txBlack);
-    // const sail = new Sail(180, 10, 1.8, 0.1, app.txBlack);
-    // sail.setTexture(texture);
-    // app.scene.add(sail.mesh);
-    // app.sails.push(sail);
+    const sail = new Sail(180, 60, 1.8, 0.6, texture);
+    // const sail = new Sail(180, 10, 1.8, 0.1, texture);
+    app.scene.add(sail.mesh);
+    app.sails.push(sail);
   });
 }
 
@@ -173,7 +172,7 @@ function initThree() {
 
   // TODO: Toggle "transparent" from code
   // TODO: Add uniform for alpha
-  const geometry = new THREE.BoxGeometry(0.6, 0.1, 0.6);
+  const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
   const material = new THREE.MeshPhongMaterial({
     map: app.txBlack,
     // transparent: true,
@@ -265,7 +264,7 @@ function animate() {
       sailsToRemove.push(sail);
       continue;
     }
-    sail.updatePositions(dt);
+    // sail.updatePositions(dt);
     sail.updateGeometry();
   }
   for (const s of sailsToRemove) {

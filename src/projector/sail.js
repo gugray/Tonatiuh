@@ -1,26 +1,39 @@
 import * as THREE from "three";
 import * as CG from "./customGeo.js";
-import * as noise from "./tmp/noise.js";
-import {simplex3curl} from "./tmp/curl.js";
+import * as noise from "./noise.js";
+import {simplex3curl} from "./curl.js";
 
 const simFieldMul = 1;
-const simSpeed = 0.0003;
+const simSpeed = 0.00001;
 
 noise.seed(0);
+let renderOrder = 10000;
 
 export class Sail {
-  constructor(nHoriz, nVert, szHoriz, szVert, txBlack) {
+  constructor(nHoriz, nVert, szHoriz, szVert, tx) {
     this.nVerts = (nHoriz + 1) * (nVert + 1);
+    // Shared array buffer with vertex positions
     this.sarrBuf = initPositions(nHoriz, nVert, szHoriz, szVert);
-    this.mesh = makeCodeSailMesh(txBlack, nHoriz, nVert, new Float32Array(this.sarrBuf));
+    // Geometry
+    this.mesh = makeCodeSailMesh(tx, nHoriz, nVert, new Float32Array(this.sarrBuf));
     this.mesh.scale.set(20, 20, 20);
     this.mesh.position.z = 13;
-    this.age = 0;
-  }
-
-  setTexture(tx) {
     this.mesh.material.map = tx;
     this.mesh.material.needsUpdate = true;
+    // Vertex position updater in worker thread
+    const simCanvas = document.createElement("canvas").transferControlToOffscreen();
+    this.updater = new Worker("uwSail.js");
+    this.updater.postMessage(
+      {
+        simCanvas: simCanvas,
+        simBuffer: this.sarrBuf,
+        simFieldMul,
+        simSpeed,
+      },
+      [simCanvas],
+    );
+    // We're young
+    this.age = 0;
   }
 
   updatePositions(dt) {
@@ -73,8 +86,6 @@ function initPositions(nHoriz, nVert, szHoriz, szVert) {
 
   return sarrBuf;
 }
-
-let renderOrder = 10000;
 
 function makeCodeSailMesh(txBlack, nHoriz, nVert, posArr) {
   const nVerts = (nHoriz + 1) * (nVert + 1);

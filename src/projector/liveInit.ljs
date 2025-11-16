@@ -29,7 +29,7 @@ setUpdateInstances((app, cache, params, state) => {
     cache.obj.quaternion.setFromUnitVectors(cache.unitY, cache.dir);
     cache.obj.updateMatrix();
     app.mMask.setMatrixAt(i, cache.obj.matrix);
-    // cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
+    cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
     app.mMask.setColorAt(i, cache.clr);
   }
   app.mMask.material.opacity = 1.0;

@@ -5,12 +5,11 @@ precision highp float;
 
 uniform sampler2D txPos;
 uniform float simFieldMul;
-uniform vec3 nzOfs;
 uniform float dt;
 out vec4 outColor;
 
 void main() {
-    vec3 pos = texelFetch(txPos, ivec2(gl_FragCoord.xy), 0).rgb;
+    vec3 pos = texelFetch(txPos, ivec2(gl_FragCoord.xy), 0).xyz;
     pos *= simFieldMul;
 
     vec3 posX = pos;
@@ -20,6 +19,6 @@ void main() {
     vec3 derivY = SimplexPerlin3D_Deriv(posY).yzw;
     vec3 derivZ = SimplexPerlin3D_Deriv(posZ).yzw;
     vec3 curlDir = vec3(derivZ.y - derivY.z, derivX.z - derivZ.x, derivY.x - derivX.y);
-    outColor.rgb = normalize(curlDir);
+    outColor.xyz = normalize(curlDir);
 }
 

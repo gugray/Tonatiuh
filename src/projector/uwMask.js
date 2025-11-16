@@ -1,9 +1,8 @@
 import * as twgl from "twgl.js";
-import sSweepVert from "shaders/sweep-vert.glsl";
-import sCalcPosFrag from "shaders/calc-pos.glsl";
-import sCalcVeloFrag from "shaders/calc-velo.glsl";
+import sSweepVert from "./shaders/sweep-vert.glsl";
+import sCalcPosFrag from "./shaders/calc-mask-pos.glsl";
+import sCalcVeloFrag from "./shaders/calc-mask-velo.glsl";
 import {ParticleSystem, ParticleData} from "./particleSystem.js";
-import {sortedArray} from "three/src/animation/AnimationUtils.js";
 
 const prt = new ParticleData();
 
@@ -15,6 +14,18 @@ let txPos0, txPos1, arrPos, progiPosUpdate;
 
 let simFieldMul, simSpeed, maxAge;
 let lastUpdateTime = null;
+
+onmessage = (e) => {
+  if (e.data.modelBuffer) {
+    init(e.data.modelBuffer, e.data.simBuffer, e.data.simCanvas);
+  }
+  if ("simFieldMul" in e.data) simFieldMul = e.data.simFieldMul;
+  if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
+  if ("maxAge" in e.data) maxAge = e.data.maxAge;
+  if ("oneTimeReset" in e.data) reset(e.data.oneTimeReset);
+
+  updateLoop();
+};
 
 function init(modelBuffer, simBuffer, simCanvas) {
   psys = new ParticleSystem(modelBuffer, simBuffer);
@@ -114,18 +125,6 @@ function updateParticle(i, dt) {
   psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.vx, prt.vy, prt.vz, prt.age);
 }
 
-onmessage = (e) => {
-  if (e.data.modelBuffer) {
-    init(e.data.modelBuffer, e.data.simBuffer, e.data.simCanvas);
-  }
-  if ("simFieldMul" in e.data) simFieldMul = e.data.simFieldMul;
-  if ("simSpeed" in e.data) simSpeed = e.data.simSpeed;
-  if ("maxAge" in e.data) maxAge = e.data.maxAge;
-  if ("oneTimeReset" in e.data) reset(e.data.oneTimeReset);
-
-  updateLoop();
-};
-
 function reset(kind) {
   let updatePt;
   if (kind == "model") {
@@ -150,7 +149,6 @@ function updateSimulation(dt) {
     sz: szDataTexture,
     txPos: txPos0,
     simFieldMul: simFieldMul,
-    nzOfs: [10000.5, 10000.5, 10000.5],
     dt: dt,
   };
   let atmsVelo = [{attachment: txVelo}];
