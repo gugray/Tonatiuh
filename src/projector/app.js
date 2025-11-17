@@ -9,9 +9,7 @@ import * as THREE from "three";
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
 const tidalLiveSocketUrl = "https://liverelay.aka-gabor.xyz/relay";
-// const tidalLiveSocketUrl = null;
 const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
-// const jsLiveSocketUrl = "ws://localhost:8090/relay";
 
 const fadeInTime = 1000; // max 9000
 const fadeOutTime = 2000; // max 9000
@@ -58,8 +56,8 @@ const cache = {
   dirxy: new THREE.Vector3(),
   quat: new THREE.Quaternion(),
   mat4: new THREE.Matrix4(),
-  unitZ: new THREE.Vector3(0, 0, 1),
   unitY: new THREE.Vector3(0, 1, 0),
+  unitZ: new THREE.Vector3(0, 0, 1),
   axis: new THREE.Vector3(),
   clr: new THREE.Color(),
   prt: new ParticleData(),

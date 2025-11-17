@@ -19,14 +19,12 @@ setUpdateInstances((app, cache, params, state) => {
     );
     // Where should boxes point? Flow field, or surface normal
     if (pointTo == "surface") {
-      cache.dir.set(cache.prt.nx, cache.prt.ny, cache.prt.nz);
+      cache.obj.quaternion.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
     }
     // Flow field
     else if (pointTo == "field") {
-      cache.dir.set(cache.prt.vx, cache.prt.vy, cache.prt.vz);
-      cache.dir.normalize();
+      cache.obj.quaternion.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
     }
-    cache.obj.quaternion.setFromUnitVectors(cache.unitY, cache.dir);
     cache.obj.updateMatrix();
     app.mMask.setMatrixAt(i, cache.obj.matrix);
     cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);

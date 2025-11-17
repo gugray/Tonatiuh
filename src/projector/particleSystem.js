@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import {shuffle} from "./random.js";
 
 let fadeInTime, fadeOutTime;
@@ -23,6 +24,8 @@ export class ParticleData {
     this.nx = 0;
     this.ny = 0;
     this.nz = 0;
+    // Quaternion to rotate from UnitY to model point normal
+    this.nqx = this.nqy = this.nqz = this.nqw = 0;
     // Current point coordinates (when animating)
     this.cx = 0;
     this.cy = 0;
@@ -31,8 +34,13 @@ export class ParticleData {
     this.vx = 0;
     this.vy = 0;
     this.vz = 0;
+    // Quaternion to rotate from UnitY to velocity
+    this.vqx = this.vqy = this.vqz = this.vqw = 0;
     // Current particle age
     this.age = 0;
+    // Distance traveled from mask
+    this.dist = 0;
+    //
   }
   lifeEdgeScale() {
     let t = 1;
@@ -46,9 +54,6 @@ export class ParticleData {
       t = -this.age / fadeInTime;
       t = 1 - t;
     }
-    if (t > 1) {
-      let jfkdsl = 0;
-    }
     if (t < 0) {
       console.log(`Age ${this.age} t ${t}`);
     }
@@ -58,17 +63,30 @@ export class ParticleData {
 
 export class ParticleSystem {
   constructor(val1, val2) {
+    const unitY = new THREE.Vector3(0, 1, 0);
+    const dir = new THREE.Vector3();
+    const quat = new THREE.Quaternion();
     // Array of model values, provided by loadModelFromPLY, 9 values per point
     // In this case val2 is undefined
     if (Array.isArray(val1)) {
       const modelValues = val1;
       this.count = modelValues.length / 9;
       // 9 values per point from model
-      this.modelBuffer = new SharedArrayBuffer(this.count * 9 * 4);
+      // 4 values for nquat
+      this.modelBuffer = new SharedArrayBuffer(this.count * 13 * 4);
       this.modelArray = new Float32Array(this.modelBuffer);
-      for (let i = 0; i < this.modelArray.length; ++i) this.modelArray[i] = modelValues[i];
-      // 7 values per point in simulation
-      this.simBuffer = new SharedArrayBuffer(this.count * 7 * 4);
+      for (let i = 0; i < this.count; ++i) {
+        for (let j = 0; j < 9; ++j) this.modelArray[i * 13 + j] = modelValues[i * 9 + j];
+        // Quaternion from unitY to model normal
+        dir.set(modelValues[i * 9 + 6], modelValues[i * 9 + 7], modelValues[i * 9 + 8]);
+        quat.setFromUnitVectors(unitY, dir);
+        this.modelArray[i * 13 + 9] = quat.x;
+        this.modelArray[i * 13 + 10] = quat.y;
+        this.modelArray[i * 13 + 11] = quat.z;
+        this.modelArray[i * 13 + 12] = quat.w;
+      }
+      // 12 values per point in simulation
+      this.simBuffer = new SharedArrayBuffer(this.count * 12 * 4);
       this.simArray = new Float32Array(this.simBuffer);
     }
     // Existing SharedArrayBuffers of a model
@@ -77,7 +95,7 @@ export class ParticleSystem {
       this.simBuffer = val2;
       this.modelArray = new Float32Array(this.modelBuffer);
       this.simArray = new Float32Array(this.simBuffer);
-      this.count = this.modelArray.length / 9;
+      this.count = this.modelArray.length / 13;
     }
   }
   /**
@@ -85,8 +103,8 @@ export class ParticleSystem {
    * @param {ParticleData} mp ModelPoint instance that will receive values
    */
   getParticle(ix, mp) {
-    const mofs = ix * 9;
-    const sofs = ix * 7;
+    const mofs = ix * 13;
+    const sofs = ix * 12;
     mp.mx = this.modelArray[mofs];
     mp.my = this.modelArray[mofs + 1];
     mp.mz = this.modelArray[mofs + 2];
@@ -96,43 +114,58 @@ export class ParticleSystem {
     mp.nx = this.modelArray[mofs + 6];
     mp.ny = this.modelArray[mofs + 7];
     mp.nz = this.modelArray[mofs + 8];
+    mp.nqx = this.modelArray[mofs + 9];
+    mp.nqy = this.modelArray[mofs + 10];
+    mp.nqz = this.modelArray[mofs + 11];
+    mp.nqw = this.modelArray[mofs + 12];
     mp.cx = this.simArray[sofs];
     mp.cy = this.simArray[sofs + 1];
     mp.cz = this.simArray[sofs + 2];
     mp.vx = this.simArray[sofs + 3];
     mp.vy = this.simArray[sofs + 4];
     mp.vz = this.simArray[sofs + 5];
-    mp.age = this.simArray[sofs + 6];
+    mp.vqx = this.simArray[sofs + 6];
+    mp.vqy = this.simArray[sofs + 7];
+    mp.vqz = this.simArray[sofs + 8];
+    mp.vqw = this.simArray[sofs + 9];
+    mp.age = this.simArray[sofs + 10];
+    mp.dist = this.simArray[sofs + 11];
   }
 
-  updateParticle(ix, cx, cy, cz, vx, vy, vz, age) {
-    const ofs = ix * 7;
+  updateParticle(ix, cx, cy, cz, vx, vy, vz, vqx, vqy, vqz, vqw, age, dist) {
+    const ofs = ix * 12;
     this.simArray[ofs] = cx;
     this.simArray[ofs + 1] = cy;
     this.simArray[ofs + 2] = cz;
     this.simArray[ofs + 3] = vx;
     this.simArray[ofs + 4] = vy;
     this.simArray[ofs + 5] = vz;
-    this.simArray[ofs + 6] = age;
+    this.simArray[ofs + 6] = vqx;
+    this.simArray[ofs + 7] = vqy;
+    this.simArray[ofs + 8] = vqz;
+    this.simArray[ofs + 9] = vqw;
+    this.simArray[ofs + 10] = age;
+    this.simArray[ofs + 11] = dist;
   }
 
   setParticleAge(ix, age) {
-    this.simArray[ix * 7 + 6] = age;
+    this.simArray[ix * 12 + 10] = age;
   }
 
   putAllOnModel() {
     for (let ix = 0; ix < this.count; ++ix) {
-      const mofs = ix * 9;
-      const sofs = ix * 7;
+      const mofs = ix * 13;
+      const sofs = ix * 12;
       this.simArray[sofs] = this.modelArray[mofs];
       this.simArray[sofs + 1] = this.modelArray[mofs + 1];
       this.simArray[sofs + 2] = this.modelArray[mofs + 2];
     }
   }
 
+  // TODO remove
   scatterAll() {
     for (let ix = 0; ix < this.count; ++ix) {
-      const sofs = ix * 7;
+      const sofs = ix * 12;
       this.simArray[sofs] = Math.random() - 0.5;
       this.simArray[sofs + 1] = Math.random() - 0.5;
       this.simArray[sofs + 2] = Math.random() - 0.5;

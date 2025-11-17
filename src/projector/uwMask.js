@@ -4,6 +4,7 @@ import sCalcPosFrag from "./shaders/calc-mask-pos.glsl";
 import sCalcVeloFrag from "./shaders/calc-mask-velo.glsl";
 import {mulberry32} from "./random.js";
 import {ParticleSystem, ParticleData} from "./particleSystem.js";
+import * as THREE from "three";
 
 const rand = mulberry32(0);
 const prt = new ParticleData();
@@ -97,6 +98,10 @@ function createDataTexture(sz, initFrom) {
   return [data, tx];
 }
 
+const unitY = new THREE.Vector3(0, 1, 0);
+const dir = new THREE.Vector3();
+const quat = new THREE.Quaternion();
+
 function updateParticle(i, dt) {
   psys.getParticle(i, prt);
 
@@ -109,7 +114,19 @@ function updateParticle(i, dt) {
   prt.cz = arrPos[i * 4 + 2];
   prt.age = arrPos[i * 4 + 3];
 
-  psys.updateParticle(i, prt.cx, prt.cy, prt.cz, prt.vx, prt.vy, prt.vz, prt.age);
+  dir.set(prt.vx, prt.vy, prt.vz);
+  dir.normalize();
+  quat.setFromUnitVectors(unitY, dir);
+  prt.vqx = quat.x;
+  prt.vqy = quat.y;
+  prt.vqz = quat.z;
+  prt.vqw = quat.w;
+
+  // prettier-ignore
+  psys.updateParticle(i, prt.cx, prt.cy, prt.cz,
+    prt.vx, prt.vy, prt.vz,
+    prt.vqx, prt.vqy, prt.vqz, prt.vqw,
+    prt.age, 0);
 }
 
 function updateSimulation(dt) {
