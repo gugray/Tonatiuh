@@ -25,6 +25,11 @@ setUpdateInstances((app, cache, params, state) => {
     else if (pointTo == "field") {
       cache.obj.quaternion.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
     }
+    // Funsies: lerp between surface and field direction
+    // cache.q1.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
+    // cache.q2.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
+    // const dlerp = (Math.cos(state.time * 0.0005) + 1) / 2;
+    // cache.obj.quaternion.copy(cache.q1).slerp(cache.q2, dlerp);
     cache.obj.updateMatrix();
     app.mMask.setMatrixAt(i, cache.obj.matrix);
     cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);

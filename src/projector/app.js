@@ -34,7 +34,7 @@ const params = {
   modelScale: 36,
   preserveBuffer: false,
   simFieldMul: 2.5, // 2.5 for original
-  simSpeed: 0.0005, // 0.001
+  simSpeed: 0.0001, // 0.001
   stableAge: 25000,
   camRotThrust: 0.0005, // 0.0005
   camPanThrust: 0.01, // 0.01
@@ -54,7 +54,8 @@ const cache = {
   obj: new THREE.Object3D(),
   dir: new THREE.Vector3(),
   dirxy: new THREE.Vector3(),
-  quat: new THREE.Quaternion(),
+  q1: new THREE.Quaternion(),
+  q2: new THREE.Quaternion(),
   mat4: new THREE.Matrix4(),
   unitY: new THREE.Vector3(0, 1, 0),
   unitZ: new THREE.Vector3(0, 0, 1),
