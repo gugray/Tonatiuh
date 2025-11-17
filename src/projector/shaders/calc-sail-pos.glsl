@@ -24,6 +24,6 @@ void main() {
     vec3 derivZ = SimplexPerlin3D_Deriv(posZ).yzw;
     vec3 curlDir = vec3(derivZ.y - derivY.z, derivX.z - derivZ.x, derivY.x - derivX.y);
 
-    outColor.xyz = prev + curlDir * simSpeed * dt;
+    outColor.xyz = prev + normalize(curlDir) * simSpeed * dt;
 }
 

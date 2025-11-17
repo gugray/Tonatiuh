@@ -3,7 +3,7 @@ import * as noise from "./noise.js";
 import {simplex3curl} from "./curl.js";
 
 const simFieldMul = 1;
-const simSpeed = 0.00001;
+const simSpeed = 0.00002;
 
 noise.seed(0);
 let renderOrder = 1000;
