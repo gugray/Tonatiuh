@@ -10,17 +10,28 @@ uniform float simFieldMul;
 uniform float stableAge;
 uniform float fadeInTime;
 uniform float fadeOutTime;
+uniform float reset;
 uniform float dt;
 uniform float rand;
 out vec4 outColor;
+
+float getBirthAge(vec2 coord) {
+    float birthAge = stableAge * gold_noise(coord, rand) * 0.9;
+    return -20000.0 - birthAge;
+}
 
 void main() {
     vec4 data = texelFetch(txPos, ivec2(gl_FragCoord.xy), 0);
     vec3 pos = data.xyz;
     float age = data.w;
 
+    // Resetting
+    if (reset != 0.0) {
+        age = getBirthAge(gl_FragCoord.xy);
+        pos = texelFetch(txSurf, ivec2(gl_FragCoord.xy), 0).xyz;
+    }
     // Particle exceeds age? Go to fade-out
-    if (age > stableAge) {
+    else if (age > stableAge) {
         age = -10000.0 - fadeOutTime;
     }
     // Particle fading in
@@ -28,7 +39,7 @@ void main() {
         age += dt;
         // Finished fading in: determine random age
         if (age > 0.0) {
-            float birthAge = stableAge * gold_noise(gl_FragCoord.xy, rand) * 0.9;
+            age = getBirthAge(gl_FragCoord.xy);
         }
     }
     // Particle fading out (-19100 < age < -10000
@@ -53,7 +64,6 @@ void main() {
     vec3 derivY = SimplexPerlin3D_Deriv(posY).yzw;
     vec3 derivZ = SimplexPerlin3D_Deriv(posZ).yzw;
     vec3 curlDir = vec3(derivZ.y - derivY.z, derivX.z - derivZ.x, derivY.x - derivX.y);
-    //outColor.xyz = curlDir;
     outColor.xyz = normalize(curlDir);
 }
 

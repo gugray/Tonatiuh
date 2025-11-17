@@ -1,5 +1,6 @@
 import {mulberry32, setRandomGenerator, rand} from "./random.js";
 import {initReceiver} from "./receiver.js";
+import {createParam, updateParams} from "./smoothParams.js";
 import {loadModelFromPLY, ParticleData, setFadeTimes} from "./particleSystem.js";
 import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated, setTidalOffscreen} from "./audioLayer.js";
 import {Sail} from "./sail.js";
@@ -33,9 +34,9 @@ const params = {
   seed: 0,
   modelScale: 36,
   preserveBuffer: false,
-  simFieldMul: 2.5, // 2.5 for original
-  simSpeed: 0.0001, // 0.001
-  stableAge: 25000,
+  simFieldMul: createParam(2.5), // 2.5 for original
+  simSpeed: createParam(0.0001), // 0.001
+  stableAge: createParam(4000),
   camRotThrust: 0.0005, // 0.0005
   camPanThrust: 0.01, // 0.01
   updateInstances: null,
@@ -73,7 +74,7 @@ async function initApp() {
   app.psys = await loadModelFromPLY(THREE, modelUrl, rot);
   app.psys.putAllOnModel();
   for (let ix = 0; ix < app.psys.count; ++ix) {
-    app.psys.setParticleAge(ix, params.stableAge * rand());
+    app.psys.setParticleAge(ix, params.stableAge.get() * (rand() * 1.15));
   }
 
   // GPU particle system updater in worker thread
@@ -84,9 +85,9 @@ async function initApp() {
       simCanvas: simCanvas,
       modelBuffer: app.psys.modelBuffer,
       simBuffer: app.psys.simBuffer,
-      simFieldMul: params.simFieldMul,
-      simSpeed: params.simSpeed,
-      stableAge: params.stableAge,
+      simFieldMul: params.simFieldMul.get(),
+      simSpeed: params.simSpeed.get(),
+      stableAge: params.stableAge.get(),
       fadeInTime: fadeInTime,
       fadeOutTime: fadeOutTime,
     },
@@ -258,6 +259,7 @@ function animate() {
   state.time += dt;
   state.lastTime = now;
 
+  updateParams(dt);
   updateCam();
   updatePointLight(app, cache, params, state);
   updateSails(dt);
@@ -265,6 +267,12 @@ function animate() {
 
   app.renderer.clear();
   app.renderer.render(app.scene, app.camera);
+
+  app.updater.postMessage({
+    simFieldMul: params.simFieldMul.get(),
+    simSpeed: params.simSpeed.get(),
+    stableAge: params.stableAge.get(),
+  });
 
   requestAnimationFrame(animate);
 }
@@ -277,6 +285,9 @@ const commandContext = {
   setUpdateInstances: function (fun) {
     params.updateInstances = fun;
   },
+  reset: function () {
+    app.updater.postMessage({reset: 1});
+  },
 };
 
 function onSocketMessage(data) {
@@ -285,8 +296,8 @@ function onSocketMessage(data) {
     try {
       const evalCommand = new Function("ctxt", `with(ctxt) { ${data.content}; }`);
       evalCommand(commandContext);
-    } catch {
-      console.log("Command errored out");
+    } catch (error) {
+      console.log(`Command errored out: ${error}`);
     }
   }
   // Tidal: display in overlay

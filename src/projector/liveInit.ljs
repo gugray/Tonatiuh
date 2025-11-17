@@ -1,8 +1,7 @@
 params.modelScale = 36;
 params.preserveBuffer = false;
-params.simFieldMul = 2.5;
-params.simSpeed = 0.001;
-params.maxAge = 24000;
+params.simFieldMul.set(2.5);
+params.simSpeed.set(0.0001);
 
 setUpdateInstances((app, cache, params, state) => {
   app.mMask.geometry.rotateY(0.01);
@@ -12,11 +11,8 @@ setUpdateInstances((app, cache, params, state) => {
     app.psys.getParticle(i, cache.prt);
     cache.obj.scale.set(1, 1, 1);
     cache.obj.scale.multiplyScalar(cache.prt.lifeEdgeScale());
-    cache.obj.position.set(
-      cache.prt.cx * params.modelScale,
-      cache.prt.cy * params.modelScale,
-      cache.prt.cz * params.modelScale,
-    );
+    cache.obj.position.set(cache.prt.cx, cache.prt.cy, cache.prt.cz);
+    cache.obj.position.multiplyScalar(params.modelScale);
     // Where should boxes point? Flow field, or surface normal
     if (pointTo == "surface") {
       cache.obj.quaternion.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
@@ -45,12 +41,5 @@ setUpdateInstances((app, cache, params, state) => {
 
 // Re-declarations for editor comfort
 // ====================================
-const params = {
-  modelScale: 36,
-  preserveBuffer: false,
-  simFieldMul: 2.5, // 2.5 for original
-  simSpeed: 0.001,
-  maxAge: 24000,
-};
-
+params = {};
 function setUpdateInstances(fun) {}

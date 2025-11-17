@@ -152,6 +152,7 @@ function updateSimulation(dt) {
     stableAge: stableAge,
     fadeInTime: fadeInTime,
     fadeOutTime: fadeOutTime,
+    reset: reset,
     dt: dt,
     rand: rand(),
   };
@@ -177,6 +178,7 @@ function updateSimulation(dt) {
     txVelo: txVelo,
     simSpeed: simSpeed * 1, // TODO DBG
     fadeInTime: fadeInTime,
+    reset: reset,
     dt: dt,
   };
   let atmsPosU = [{attachment: txPos1}];
