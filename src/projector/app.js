@@ -15,6 +15,7 @@ const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
 
 const fadeInTime = 1000; // max 9000
 const fadeOutTime = 2000; // max 9000
+const dbgShowLights = false;
 
 const app = {
   psys: null,
@@ -26,7 +27,7 @@ const app = {
   txBlack: null,
   mMask: null,
   sails: [],
-  pointLight: null,
+  pointLights: [],
 };
 
 const params = {
@@ -35,7 +36,7 @@ const params = {
   preserveBuffer: false,
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
-  stableAge: createParam(40000),
+  stableAge: createParam(4000),
   updateInstances: null,
 };
 
@@ -115,7 +116,6 @@ async function initApp() {
   // }, 500);
   onTidalCanvasUpdated((canvas) => {
     const tx = new THREE.CanvasTexture(canvas);
-    // const sail = new Sail(180, 60, 1.8, 0.6, tx, 8000);
     const sail = new Sail(tx, canvas.width, canvas.height, 8000);
     app.sailScene.add(sail.mesh);
     app.sails.push(sail);
@@ -128,6 +128,7 @@ function initThree() {
   app.maskScene.fog = new THREE.FogExp2(0x000000, 0.015);
   app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+  // Renderer
   app.renderer = new THREE.WebGLRenderer({
     canvas: document.getElementById("canv3"),
     preserveDrawingBuffer: true,
@@ -137,24 +138,50 @@ function initThree() {
   app.renderer.setSize(window.innerWidth, window.innerHeight);
   app.renderer.setPixelRatio(window.devicePixelRatio);
 
-  function makeDirLight(x, y, z, intensity) {
+  // Lighting
+  function addDirLight(x, y, z, intensity) {
     const light = new THREE.DirectionalLight(0xffffff, intensity);
     light.position.set(x, y, z);
-    return light;
+    app.maskScene.add(light);
+  }
+
+  let plGeo, plMat;
+  function addPointLight(setPos) {
+    const light = new THREE.PointLight(0xffffff, 50, 0, 1.8);
+    app.pointLights.push(light);
+    app.maskScene.add(light);
+    light.userData.setPos = setPos;
+    if (dbgShowLights) {
+      if (!plGeo) plGeo = new THREE.OctahedronGeometry(1);
+      if (!plMat) plMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+      const msh = new THREE.Mesh(plGeo, plMat);
+      app.maskScene.add(msh);
+      light.userData.octaMesh = msh;
+    }
   }
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
   app.maskScene.add(ambientLight);
 
-  const dirLight1 = makeDirLight(-100, 50, 100, 0.8);
-  app.maskScene.add(dirLight1);
+  addDirLight(-100, 50, 100, 0.8);
+  addDirLight(0, 100, -10, 0.6);
+  addPointLight((pos, t) => {
+    pos.x = 20 * Math.sin(t * 0.0003);
+    pos.y = 10;
+    pos.z = 12 * Math.cos(t * 0.0003);
+  });
+  addPointLight((pos, t) => {
+    pos.x = 20 * Math.cos(t * 0.0003);
+    pos.y = -10;
+    pos.z = 12 * Math.sin(t * 0.0003);
+  });
+  addPointLight((pos, t) => {
+    pos.x = 0;
+    pos.y = 40 * Math.sin(t * 0.00025);
+    pos.z = 20 * Math.cos(t * 0.00075);
+  });
 
-  const dirLight2 = makeDirLight(0, 100, -10, 0.6);
-  app.maskScene.add(dirLight2);
-
-  app.pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
-  app.maskScene.add(app.pointLight);
-
+  // Le masque
   const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
   const material = new THREE.MeshPhongMaterial({transparent: true});
 
@@ -178,9 +205,13 @@ function initEvents() {
   window.addEventListener("resize", onWindowResize);
 }
 
-function updatePointLight(app, cache, params, state) {
-  app.pointLight.position.set(20 * Math.sin(state.time * 0.0003), 5, 12 * Math.cos(state.time * 0.0003));
-  app.pointLight.intensity = 50;
+function updatePointLights(app, cache, params, state) {
+  for (const light of app.pointLights) {
+    light.userData.setPos(light.position, state.time);
+    if (light.userData.octaMesh) {
+      light.userData.octaMesh.position.copy(light.position);
+    }
+  }
 }
 
 function updateSails(dt) {
@@ -205,7 +236,7 @@ function animate() {
   state.lastAnimTime = now;
 
   updateParams(dt);
-  updatePointLight(app, cache, params, state);
+  updatePointLights(app, cache, params, state);
   updateSails(dt);
   params.updateInstances(app, cache, params, state);
 

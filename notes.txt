@@ -19,7 +19,7 @@ OK Lerping/easing parameters
 OK Framerate-stable camera movements (use dt)
 OK Fast/slow camera
 OK Return camera to default
--- More point lights; show them for dev
+OK More point lights; show them for dev
 -- Gray god
 -- "Re-seed" noise (ie random offsets in shader)
 OK Instance rotation calculated in worker
@@ -28,6 +28,10 @@ OK Instance rotation calculated in worker
 Effect ideas:
 -- Synaptic wave animation
 -- Scale out of existence (and back), all boxes simultaneously
+-- Soft color bg: based on noise: pan when rotating, not true panorama
+   Zoom can move in Z dim
+-- Starry sky; similar effect as bg noise?
+-- Vignette
 
 New stuff maybe:
 -- Sails: Rolling sine wave
@@ -35,5 +39,3 @@ New stuff maybe:
 -- Per-instance opacity attribute? Or just global?
 -- Eased animated return to mask
 -- Bloom effect
--- Fixed or rotating stars; twinkle; expand out
--- Vignette; faint background
