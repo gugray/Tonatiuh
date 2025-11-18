@@ -95,11 +95,13 @@ function camControlLoop() {
   v3.copy(camPanSpeed).multiplyScalar(dt * 0.1);
   camPanGroup.position.add(v3);
 
-  camRotSpeed.multiplyScalar(camRotDamping);
+  const rdamp = Math.pow(camRotDamping, dt * 0.1);
+  camRotSpeed.multiplyScalar(rdamp);
   if (Math.abs(camRotSpeed.y) < camRotThrust * 0.3) camRotSpeed.y = 0;
   if (Math.abs(camRotSpeed.x) < camRotThrust * 0.3) camRotSpeed.x = 0;
 
-  camPanSpeed.multiplyScalar(camPanDamping);
+  const pdamp = Math.pow(camPanDamping, dt * 0.1);
+  camPanSpeed.multiplyScalar(pdamp);
   if (Math.abs(camPanSpeed.y) < camPanThrust * 0.03) camPanSpeed.y = 0;
   if (Math.abs(camPanSpeed.x) < camPanThrust * 0.03) camPanSpeed.x = 0;
   if (Math.abs(camPanSpeed.z) < camPanThrust * 0.03) camPanSpeed.z = 0;
