@@ -1,10 +1,10 @@
 Reimplement:
 OK Age & return to mask in GPU animation
--- Message worker when simFieldMul, simSpeed etc. change
+OK Message worker when simFieldMul, simSpeed etc. change
 -- BG flashing lines
 -- Twirlie & size audio-reactivity
 -- No BG clear
--- Reset to mask
+OK Reset to mask
 
 Sail innovations:
 OK Right-size sails
@@ -15,20 +15,21 @@ OK Faster HTML to canvas
 
 New stuff shortlist:
 OK Scale boxes out/in at lifetime edges
--- Framerate-stable camera movements (use dt)
--- Lerping/easing parameters
--- More point lights; show them for dev
+OK Lerping/easing parameters
+OK Framerate-stable camera movements (use dt)
+-- Fast/slow camera
 -- Return camera to default
+-- More point lights; show them for dev
 -- Gray god
--- Set box colors only once
--- Instance rotation calculated in worker
+-- "Re-seed" noise (ie random offsets in shader)
+OK Instance rotation calculated in worker
 -- Game controller; or disable windows button?
 
 Effect ideas:
 -- Synaptic wave animation
 -- Scale out of existence (and back), all boxes simultaneously
 
-New stuff misc:
+New stuff maybe:
 -- Sails: Rolling sine wave
 -- Sails: Audioreactivity
 -- Per-instance opacity attribute? Or just global?

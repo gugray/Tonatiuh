@@ -43,15 +43,18 @@ const params = {
 };
 
 const state = {
-  lastTime: Date.now(),
+  lastAnimTime: Date.now(),
+  lastCamTime: Date.now(),
   time: 0,
-  camRotAccel: new THREE.Vector4(), // x: altitude, y: azimuth
-  camRotSpeed: new THREE.Vector4(), // x: altitude, y: azimuth
+  camRotAccel: new THREE.Vector2(), // x: altitude, y: azimuth
+  camRotSpeed: new THREE.Vector2(), // x: altitude, y: azimuth
   camPanAccel: new THREE.Vector3(), // x, y: pan; z: distance
   camPanSpeed: new THREE.Vector3(), // x, y: pan; z: distance
 };
 
 const cache = {
+  v2: new THREE.Vector2(),
+  v3: new THREE.Vector3(),
   obj: new THREE.Object3D(),
   dir: new THREE.Vector3(),
   dirxy: new THREE.Vector3(),
@@ -113,7 +116,9 @@ async function initApp() {
 
   // Start the movie
   animate();
+  setTimeout(camControlLoop, 0);
 
+  // Audio code messages onto sails
   setTidalOffscreen(true);
   // setTimeout(() => {
   //   fillTidalSamples();
@@ -205,7 +210,7 @@ function initEvents() {
 
   document.body.addEventListener("keyup", (e) => {
     if (e.key == "ArrowLeft" || e.key == "ArrowRight" || e.key == "ArrowUp" || e.key == "ArrowDown") {
-      state.camRotAccel.set(0, 0, 0, 0);
+      state.camRotAccel.set(0, 0);
       state.camPanAccel.set(0, 0, 0);
     }
   });
@@ -218,15 +223,23 @@ function updatePointLight(app, cache, params, state) {
   app.pointLight.intensity = 50;
 }
 
-function updateCam() {
-  // TODO: Use 'elapsed' here for variable FPS stability
-  state.camRotSpeed.add(state.camRotAccel);
-  state.camPanSpeed.add(state.camPanAccel);
-  app.camAltitudeGroup.rotation.x += state.camRotSpeed.x;
-  app.camAzimuthGroup.rotation.y += state.camRotSpeed.y;
-  app.camPanGroup.position.x += state.camPanSpeed.x;
-  app.camPanGroup.position.y += state.camPanSpeed.y;
-  app.camPanGroup.position.z += state.camPanSpeed.z;
+function camControlLoop() {
+  const now = Date.now();
+  const dt = now - state.lastCamTime;
+  state.lastCamTime = now;
+
+  setTimeout(camControlLoop, Math.max(1, 14 - dt));
+
+  cache.v2.copy(state.camRotAccel).multiplyScalar(dt * 0.1);
+  state.camRotSpeed.add(cache.v2);
+  cache.v2.copy(state.camRotSpeed).multiplyScalar(dt * 0.1);
+  app.camAltitudeGroup.rotation.x += cache.v2.x;
+  app.camAzimuthGroup.rotation.y += cache.v2.y;
+
+  cache.v3.copy(state.camPanAccel).multiplyScalar(dt * 0.1);
+  state.camPanSpeed.add(cache.v3);
+  cache.v3.copy(state.camPanSpeed).multiplyScalar(dt * 0.1);
+  app.camPanGroup.position.add(cache.v3);
 
   state.camRotSpeed.multiplyScalar(0.985);
   if (Math.abs(state.camRotSpeed.y) < 0.0001) state.camRotSpeed.y = 0;
@@ -255,12 +268,11 @@ function updateSails(dt) {
 
 function animate() {
   const now = Date.now();
-  const dt = now - state.lastTime;
+  const dt = now - state.lastAnimTime;
   state.time += dt;
-  state.lastTime = now;
+  state.lastAnimTime = now;
 
   updateParams(dt);
-  updateCam();
   updatePointLight(app, cache, params, state);
   updateSails(dt);
   params.updateInstances(app, cache, params, state);
