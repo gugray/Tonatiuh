@@ -2,9 +2,9 @@ import {mulberry32, setRandomGenerator, rand} from "./random.js";
 import {initReceiver} from "./receiver.js";
 import {createParam, updateParams} from "./smoothParams.js";
 import {loadModelFromPLY, ParticleData, setFadeTimes} from "./particleSystem.js";
-import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated, setTidalOffscreen} from "./audioLayer.js";
 import {initCameraCrane, slowCam, fastCam, resetCam} from "./cameraCrane.js";
 import {Sail} from "./sail.js";
+import * as CL from "./codeLayer.js";
 import * as CG from "./customGeo.js";
 import * as THREE from "three";
 
@@ -110,11 +110,11 @@ async function initApp() {
   animate();
 
   // Audio code messages onto sails
-  setTidalOffscreen(true);
+  CL.setTidalOffscreen(true);
   // setTimeout(() => {
-  //   fillTidalSamples();
+  //   CL.fillTidalSamples();
   // }, 500);
-  onTidalCanvasUpdated((canvas) => {
+  CL.onTidalCanvasUpdated((canvas) => {
     const tx = new THREE.CanvasTexture(canvas);
     const sail = new Sail(tx, canvas.width, canvas.height, 8000);
     app.sailScene.add(sail.mesh);
@@ -282,7 +282,7 @@ function onSocketMessage(data) {
   }
   // Tidal: display in overlay
   else if (data.source == "tidal") {
-    tidalUpdate(data.content, true);
+    CL.tidalUpdate(data.content, true);
   }
 }
 
