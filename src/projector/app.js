@@ -3,10 +3,13 @@ import {initReceiver} from "./receiver.js";
 import {createParam, updateParams} from "./smoothParams.js";
 import {loadModelFromPLY, ParticleData, setFadeTimes} from "./particleSystem.js";
 import {initCameraCrane, slowCam, fastCam, resetCam} from "./cameraCrane.js";
+import {BackgroundLines} from "./bgLines.js";
 import {Sail} from "./sail.js";
+import * as AU from "./audio.js";
 import * as CL from "./codeLayer.js";
 import * as CG from "./customGeo.js";
 import * as THREE from "three";
+import {connectAudioAPI} from "../01-modelp/fft.js";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
@@ -31,22 +34,28 @@ const app = {
   sails: [],
   dirLights: [],
   pointLights: [],
+  allColors: [],
+  bgLines: null,
 };
 
 const params = {
   seed: 0,
   modelScale: 36,
   preserveBuffer: false,
+  useShadow: false,
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(4000),
-  useShadow: false,
   updateInstances: null,
+  renderBG: true,
+  gain: 0.01,
+  bgLinesPerFrame: createParam(0.2),
 };
 
 const state = {
   lastAnimTime: Date.now(),
   time: 0,
+  audio: {lo: 0, mid: 0, hi: 0, vol: 0},
 };
 
 const cache = {
@@ -73,6 +82,9 @@ async function initApp() {
   app.psys.putAllOnModel();
   for (let ix = 0; ix < app.psys.count; ++ix) {
     app.psys.setParticleAge(ix, params.stableAge.get() * (rand() * 1.15));
+    app.psys.getParticle(ix, cache.prt);
+    cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
+    app.allColors.push("#" + cache.clr.getHexString());
   }
 
   // GPU particle system updater in worker thread
@@ -93,6 +105,7 @@ async function initApp() {
   );
 
   app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
+  app.bgLines = new BackgroundLines(document.getElementById("canv2"), app.allColors, params, state.audio);
 
   initThree();
   setUseShadow();
@@ -130,6 +143,7 @@ async function initApp() {
 function initThree() {
   // Mask scene
   app.maskScene = new THREE.Scene();
+  app.maskScene.background = null;
   app.maskScene.fog = new THREE.FogExp2(0x000000, 0.015);
   app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -137,6 +151,7 @@ function initThree() {
   app.renderer = new THREE.WebGLRenderer({
     canvas: document.getElementById("canv3"),
     preserveDrawingBuffer: true,
+    alpha: true,
   });
   app.renderer.autoClear = false;
   app.renderer.shadowMap.enabled = false;
@@ -211,6 +226,7 @@ function initThree() {
 
   // Sails scene
   app.sailScene = new THREE.Scene();
+  app.sailScene.background = null;
 }
 
 function setUseShadow() {
@@ -225,10 +241,33 @@ function onWindowResize() {
   app.camera.aspect = window.innerWidth / window.innerHeight;
   app.camera.updateProjectionMatrix();
   app.renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const elmCanv2 = document.getElementById("canv2");
+  elmCanv2.width = window.innerWidth;
+  elmCanv2.height = window.innerHeight;
 }
 
 function initEvents() {
   window.addEventListener("resize", onWindowResize);
+  document.body.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
+      document.documentElement.requestFullscreen();
+      e.preventDefault();
+      e.stopPropagation();
+    } //
+    else if (e.key == "a") {
+      AU.connectAudioAPI(params.gain);
+    } //
+    // else if (e.key == "c") {
+    //   renderer.clear();
+    // } //
+    // else if (e.key == "p") {
+    //   ctrl.preserveBuffer = !ctrl.preserveBuffer;
+    // } //
+    // else if (e.key == "m") {
+    //   toggleMetrics();
+    // }
+  });
 }
 
 function updatePointLights(app, cache, params, state) {
@@ -255,16 +294,29 @@ function updateSails(dt) {
   }
 }
 
+function updateAudio() {
+  const spectrum = AU.updateFFT();
+  const a = state.audio;
+  if (spectrum) [a.lo, a.mid, a.hi, a.vol] = spectrum;
+  else [a.lo, a.mid, a.hi, a.vol] = [0, 0, 0, 0];
+  const volPercent = ((state.vol / 2048) * 100).toFixed(2);
+  // elmVolumeVal.style.height = volPercent + "%";
+  AU.setGain(params.gain);
+}
+
 function animate() {
   const now = Date.now();
   const dt = now - state.lastAnimTime;
   state.time += dt;
   state.lastAnimTime = now;
 
+  updateAudio();
   updateParams(dt);
   updatePointLights(app, cache, params, state);
   updateSails(dt);
   params.updateInstances(app, cache, params, state);
+
+  app.bgLines.renderBackie();
 
   app.renderer.clear();
   app.renderer.render(app.maskScene, app.camera);

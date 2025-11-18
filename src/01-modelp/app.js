@@ -57,7 +57,7 @@ const state = {
   mid: 0,
   hi: 0,
   vol: 0,
-}
+};
 
 let dyn;
 
@@ -75,12 +75,12 @@ let liveStr, live;
 async function getLive() {
   const r = await fetch("live.js");
   let str = await r.text();
-  str = str.replaceAll("///","");
-  str = str.replaceAll("export","");
+  str = str.replaceAll("///", "");
+  str = str.replaceAll("export", "");
   if (str == liveStr) return;
   liveStr = str;
   live = Function(liveStr)();
-  dyn = live.dyn;  
+  dyn = live.dyn;
   live.updateCtrl(ctrl);
   setGain(ctrl.gain);
   if (dirLight1) dirLight1.castShadow = ctrl.useShadow;
@@ -96,7 +96,8 @@ const updater1 = new Worker("update_worker.js");
 const updater2 = new Worker("update_worker.js");
 function initUpdater(updater, batchSz, batchMod) {
   updater.postMessage({
-    batchSz, batchMod,
+    batchSz,
+    batchMod,
     array: model.array,
   });
 }
@@ -178,9 +179,8 @@ scene.add(dirLight2);
 const pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
 scene.add(pointLight);
 
-
 const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
-const material = new THREE.MeshPhongMaterial({ transparent: true });
+const material = new THREE.MeshPhongMaterial({transparent: true});
 
 const mesh = new THREE.InstancedMesh(geometry, material, model.count);
 mesh.castShadow = true;
@@ -205,8 +205,7 @@ const perm = {
 };
 
 model.putAllOnModel();
-for (let ix = 0; ix < model.count; ++ix)
-  model.setPointAge(ix, Math.floor(ctrl.maxAge * Math.random()));
+for (let ix = 0; ix < model.count; ++ix) model.setPointAge(ix, Math.floor(ctrl.maxAge * Math.random()));
 noise.seed(Math.random());
 getAllColors();
 
@@ -219,7 +218,7 @@ function animate() {
   const spectrum = updateFFT();
   if (spectrum) [state.lo, state.mid, state.hi, state.vol] = spectrum;
   else [state.lo, state.mid, state.hi, state.vol] = [0, 0, 0, 0];
-  const volPercent = (state.vol / 2048 * 100).toFixed(2);
+  const volPercent = ((state.vol / 2048) * 100).toFixed(2);
   elmVolumeVal.style.height = volPercent + "%";
 
   const now = Date.now();
@@ -245,7 +244,6 @@ function animate() {
   if (Math.abs(camPanSpeed.z) < 0.0001) camPanSpeed.z = 0;
 
   if (ctrl.renderScene) {
-
     const intensity = dyn.getPointLight(0, pointLight.position, perm, ctrl, state);
     pointLight.intensity = intensity;
 
@@ -271,7 +269,7 @@ function toggleMetrics() {
   if (elms.length == 0) return;
   let newDisplay = "block";
   if (elms[0].style.display == "block") newDisplay = "none";
-  elms.forEach(e => e.style.display = newDisplay);
+  elms.forEach((e) => (e.style.display = newDisplay));
 }
 
 function onWindowResize() {
@@ -286,47 +284,39 @@ function onWindowResize() {
 onWindowResize();
 animate();
 
-window.addEventListener('resize', onWindowResize);
+window.addEventListener("resize", onWindowResize);
 
-document.body.addEventListener("keydown", e => {
+document.body.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
     document.documentElement.requestFullscreen();
     e.preventDefault();
     e.stopPropagation();
-  }
-  else if (e.key == "a") {
+  } else if (e.key == "a") {
     connectAudioAPI(ctrl.gain);
-  }
-  else if (e.key == "c") {
+  } else if (e.key == "c") {
     renderer.clear();
-  }
-  else if (e.key == "p") {
+  } else if (e.key == "p") {
     ctrl.preserveBuffer = !ctrl.preserveBuffer;
-  }
-  else if (e.key == "m") {
+  } else if (e.key == "m") {
     toggleMetrics();
-  }
-  else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+  } else if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
     if (e.key == "ArrowLeft") camRotAccel.y = -0.0005;
     else if (e.key == "ArrowRight") camRotAccel.y = 0.0005;
     else if (e.key == "ArrowUp") camRotAccel.x = -0.0005;
     else if (e.key == "ArrowDown") camRotAccel.x = 0.0005;
-  }
-  else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (e.key == "ArrowLeft") camPanAccel.x = 0.01;
     else if (e.key == "ArrowRight") camPanAccel.x = -0.01;
     else if (e.key == "ArrowUp") camPanAccel.y = -0.01;
     else if (e.key == "ArrowDown") camPanAccel.y = 0.01;
-  }
-  else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+  } else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     if (e.key == "ArrowUp") camPanAccel.z = -0.01;
     else if (e.key == "ArrowDown") camPanAccel.z = 0.01;
   }
 });
 
-document.body.addEventListener("keyup", e => {
-  if (e.key == "ArrowLeft" || e.key == "ArrowRight" ||
-    e.key == "ArrowUp" || e.key == "ArrowDown") {
+document.body.addEventListener("keyup", (e) => {
+  if (e.key == "ArrowLeft" || e.key == "ArrowRight" || e.key == "ArrowUp" || e.key == "ArrowDown") {
     camRotAccel.set(0, 0, 0, 0);
     camPanAccel.set(0, 0, 0);
   }

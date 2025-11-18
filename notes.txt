@@ -2,10 +2,11 @@ Revive exiting stuff:
 OK Age & return to mask in GPU animation
 OK Message worker when simFieldMul, simSpeed etc. change
 OK Shadows
--- No BG clear
--- BG flashing lines
--- Twirlie & size audio-reactivity
+OK BG flashing lines
+OK Audio analyzer
 OK Reset to mask
+-- No BG clear
+-- Twirlie & size audio-reactivity
 
 Sail innovations:
 OK Right-size sails
@@ -21,6 +22,7 @@ OK Framerate-stable camera movements (use dt)
 OK Fast/slow camera
 OK Return camera to default
 OK More point lights; show them for dev
+-- Smoothed volume
 -- Gray god
 -- "Re-seed" noise (ie random offsets in shader)
 OK Instance rotation calculated in worker
