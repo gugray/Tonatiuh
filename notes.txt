@@ -5,8 +5,9 @@ OK Shadows
 OK BG flashing lines
 OK Audio analyzer
 OK Reset to mask
--- No BG clear
+OK No BG clear
 -- Twirlie & size audio-reactivity
+-- On-screen metrics
 
 Sail innovations:
 OK Right-size sails

@@ -258,12 +258,12 @@ function initEvents() {
     else if (e.key == "a") {
       AU.connectAudioAPI(params.gain);
     } //
-    // else if (e.key == "c") {
-    //   renderer.clear();
-    // } //
-    // else if (e.key == "p") {
-    //   ctrl.preserveBuffer = !ctrl.preserveBuffer;
-    // } //
+    else if (e.key == "c") {
+      app.renderer.clear();
+    } //
+    else if (e.key == "p") {
+      params.preserveBuffer = !params.preserveBuffer;
+    } //
     // else if (e.key == "m") {
     //   toggleMetrics();
     // }
@@ -318,7 +318,8 @@ function animate() {
 
   app.bgLines.renderBackie();
 
-  app.renderer.clear();
+  if (params.preserveBuffer) app.renderer.clearDepth();
+  else app.renderer.clear();
   app.renderer.render(app.maskScene, app.camera);
   app.renderer.clearDepth();
   app.renderer.render(app.sailScene, app.camera);
