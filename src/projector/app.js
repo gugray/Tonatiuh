@@ -19,7 +19,8 @@ const fadeOutTime = 2000; // max 9000
 const app = {
   psys: null,
   updater: null,
-  scene: null,
+  maskScene: null,
+  sailScene: null,
   camera: null,
   renderer: null,
   txBlack: null,
@@ -34,7 +35,7 @@ const params = {
   preserveBuffer: false,
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
-  stableAge: createParam(4000),
+  stableAge: createParam(40000),
   updateInstances: null,
 };
 
@@ -89,7 +90,7 @@ async function initApp() {
   app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
 
   initThree();
-  initCameraCrane(app.scene, app.camera);
+  initCameraCrane(app.maskScene, app.camera);
   initEvents();
   initReceiver(jsLiveSocketUrl, onSocketMessage);
   if (tidalLiveSocketUrl) initReceiver(tidalLiveSocketUrl, onSocketMessage);
@@ -116,14 +117,15 @@ async function initApp() {
     const tx = new THREE.CanvasTexture(canvas);
     // const sail = new Sail(180, 60, 1.8, 0.6, tx, 8000);
     const sail = new Sail(tx, canvas.width, canvas.height, 8000);
-    app.scene.add(sail.mesh);
+    app.sailScene.add(sail.mesh);
     app.sails.push(sail);
   });
 }
 
 function initThree() {
-  app.scene = new THREE.Scene();
-  app.scene.fog = new THREE.FogExp2(0x000000, 0.015);
+  // Mask scene
+  app.maskScene = new THREE.Scene();
+  app.maskScene.fog = new THREE.FogExp2(0x000000, 0.015);
   app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
   app.renderer = new THREE.WebGLRenderer({
@@ -142,16 +144,16 @@ function initThree() {
   }
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
-  app.scene.add(ambientLight);
+  app.maskScene.add(ambientLight);
 
   const dirLight1 = makeDirLight(-100, 50, 100, 0.8);
-  app.scene.add(dirLight1);
+  app.maskScene.add(dirLight1);
 
   const dirLight2 = makeDirLight(0, 100, -10, 0.6);
-  app.scene.add(dirLight2);
+  app.maskScene.add(dirLight2);
 
   app.pointLight = new THREE.PointLight(0xffffff, 0, 0, 1.8);
-  app.scene.add(app.pointLight);
+  app.maskScene.add(app.pointLight);
 
   const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
   const material = new THREE.MeshPhongMaterial({transparent: true});
@@ -160,7 +162,10 @@ function initThree() {
 
   app.mMask = new THREE.InstancedMesh(geometry, material, app.psys.count);
   app.mMask.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  app.scene.add(app.mMask);
+  app.maskScene.add(app.mMask);
+
+  // Sails scene
+  app.sailScene = new THREE.Scene();
 }
 
 function onWindowResize() {
@@ -187,7 +192,7 @@ function updateSails(dt) {
   for (const s of toRemove) {
     const ix = app.sails.indexOf(s);
     app.sails.splice(ix, 1);
-    app.scene.remove(s.mesh);
+    app.sailScene.remove(s.mesh);
     s.mesh.material.dispose();
     s.mesh.geometry.dispose();
   }
@@ -205,7 +210,9 @@ function animate() {
   params.updateInstances(app, cache, params, state);
 
   app.renderer.clear();
-  app.renderer.render(app.scene, app.camera);
+  app.renderer.render(app.maskScene, app.camera);
+  app.renderer.clearDepth();
+  app.renderer.render(app.sailScene, app.camera);
 
   app.updater.postMessage({
     simFieldMul: params.simFieldMul.get(),

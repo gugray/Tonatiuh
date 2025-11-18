@@ -15,7 +15,7 @@ export class Sail {
     const nHoriz = Math.round(w / 5);
     const nVert = Math.round(h / 5);
 
-    console.log(`Sail ${szHoriz} x ${szVert} pixels => ${nHoriz} x ${nVert} segments`);
+    // console.log(`Sail ${szHoriz} x ${szVert} pixels => ${nHoriz} x ${nVert} segments`);
 
     this.nVerts = (nHoriz + 1) * (nVert + 1);
     // Shared array buffer with vertex positions

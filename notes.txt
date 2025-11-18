@@ -1,4 +1,4 @@
-Reimplement:
+Revive exiting stuff:
 OK Age & return to mask in GPU animation
 OK Message worker when simFieldMul, simSpeed etc. change
 -- BG flashing lines
@@ -9,8 +9,8 @@ OK Reset to mask
 Sail innovations:
 OK Right-size sails
 OK Faster HTML to canvas
--- Always appear in front of camera
-   -- Make it smaller and closer? Dial in...
+OK Always overlay (render in different pass, clear depth buffer)
+-- Always appear in front of camera; play with distance
 -- Traveling sails
 
 New stuff shortlist:
