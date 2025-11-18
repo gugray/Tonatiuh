@@ -1,0 +1,3 @@
+projector/noise.js
+projector/shaders/snoise.glsl
+projector/shaders/gpu_noise_lib.glsl
