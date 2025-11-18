@@ -17,8 +17,8 @@ New stuff shortlist:
 OK Scale boxes out/in at lifetime edges
 OK Lerping/easing parameters
 OK Framerate-stable camera movements (use dt)
--- Fast/slow camera
--- Return camera to default
+OK Fast/slow camera
+OK Return camera to default
 -- More point lights; show them for dev
 -- Gray god
 -- "Re-seed" noise (ie random offsets in shader)

@@ -3,7 +3,7 @@ import {initReceiver} from "./receiver.js";
 import {createParam, updateParams} from "./smoothParams.js";
 import {loadModelFromPLY, ParticleData, setFadeTimes} from "./particleSystem.js";
 import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated, setTidalOffscreen} from "./audioLayer.js";
-import {initCameraCrane, slowCam, fastCam} from "./cameraCrane.js";
+import {initCameraCrane, slowCam, fastCam, resetCam} from "./cameraCrane.js";
 import {Sail} from "./sail.js";
 import * as CG from "./customGeo.js";
 import * as THREE from "three";
@@ -226,6 +226,7 @@ const commandContext = {
   },
   slowCam: () => slowCam(),
   fastCam: () => fastCam(),
+  resetCam: () => resetCam(),
   reset: function () {
     app.updater.postMessage({reset: 1});
   },
