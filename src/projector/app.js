@@ -3,6 +3,7 @@ import {initReceiver} from "./receiver.js";
 import {createParam, updateParams} from "./smoothParams.js";
 import {loadModelFromPLY, ParticleData, setFadeTimes} from "./particleSystem.js";
 import {tidalUpdate, fillTidalSamples, onTidalCanvasUpdated, setTidalOffscreen} from "./audioLayer.js";
+import {initCameraCrane, slowCam, fastCam} from "./cameraCrane.js";
 import {Sail} from "./sail.js";
 import * as CG from "./customGeo.js";
 import * as THREE from "three";
@@ -24,9 +25,6 @@ const app = {
   txBlack: null,
   mMask: null,
   sails: [],
-  camPanGroup: null,
-  camAltitudeGroup: null,
-  camAzimuthGroup: null,
   pointLight: null,
 };
 
@@ -37,27 +35,15 @@ const params = {
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(4000),
-  // Keep in sync with commandContext.fastCom
-  camRotThrust: 0.0003,
-  camRotDamping: 0.989,
-  camPanThrust: 0.008,
-  camPanDamping: 0.989,
   updateInstances: null,
 };
 
 const state = {
   lastAnimTime: Date.now(),
-  lastCamTime: Date.now(),
   time: 0,
-  camRotAccel: new THREE.Vector2(), // x: altitude, y: azimuth
-  camRotSpeed: new THREE.Vector2(), // x: altitude, y: azimuth
-  camPanAccel: new THREE.Vector3(), // x, y: pan; z: distance
-  camPanSpeed: new THREE.Vector3(), // x, y: pan; z: distance
 };
 
 const cache = {
-  v2: new THREE.Vector2(),
-  v3: new THREE.Vector3(),
   obj: new THREE.Object3D(),
   dir: new THREE.Vector3(),
   dirxy: new THREE.Vector3(),
@@ -103,6 +89,7 @@ async function initApp() {
   app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
 
   initThree();
+  initCameraCrane(app.scene, app.camera);
   initEvents();
   initReceiver(jsLiveSocketUrl, onSocketMessage);
   if (tidalLiveSocketUrl) initReceiver(tidalLiveSocketUrl, onSocketMessage);
@@ -119,7 +106,6 @@ async function initApp() {
 
   // Start the movie
   animate();
-  setTimeout(camControlLoop, 0);
 
   // Audio code messages onto sails
   setTidalOffscreen(true);
@@ -133,22 +119,12 @@ async function initApp() {
     app.scene.add(sail.mesh);
     app.sails.push(sail);
   });
-
-  // commandContext.slowCam();
 }
 
 function initThree() {
   app.scene = new THREE.Scene();
   app.scene.fog = new THREE.FogExp2(0x000000, 0.015);
   app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  app.camPanGroup = new THREE.Group();
-  app.camPanGroup.position.z = 50;
-  app.camPanGroup.add(app.camera);
-  app.camAltitudeGroup = new THREE.Group();
-  app.camAltitudeGroup.add(app.camPanGroup);
-  app.camAzimuthGroup = new THREE.Group();
-  app.camAzimuthGroup.add(app.camAltitudeGroup);
-  app.scene.add(app.camAzimuthGroup);
 
   app.renderer = new THREE.WebGLRenderer({
     canvas: document.getElementById("canv3"),
@@ -194,66 +170,12 @@ function onWindowResize() {
 }
 
 function initEvents() {
-  document.body.addEventListener("keydown", (e) => {
-    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
-      if (e.key == "ArrowLeft") state.camRotAccel.y = -params.camRotThrust;
-      else if (e.key == "ArrowRight") state.camRotAccel.y = params.camRotThrust;
-      else if (e.key == "ArrowUp") state.camRotAccel.x = -params.camRotThrust;
-      else if (e.key == "ArrowDown") state.camRotAccel.x = params.camRotThrust;
-    } //
-    else if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      if (e.key == "ArrowLeft") state.camPanAccel.x = params.camPanThrust;
-      else if (e.key == "ArrowRight") state.camPanAccel.x = -params.camPanThrust;
-      else if (e.key == "ArrowUp") state.camPanAccel.y = -params.camPanThrust;
-      else if (e.key == "ArrowDown") state.camPanAccel.y = params.camPanThrust;
-    } //
-    else if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-      if (e.key == "ArrowUp") state.camPanAccel.z = -params.camPanThrust;
-      else if (e.key == "ArrowDown") state.camPanAccel.z = params.camPanThrust;
-    }
-  });
-
-  document.body.addEventListener("keyup", (e) => {
-    if (e.key == "ArrowLeft" || e.key == "ArrowRight" || e.key == "ArrowUp" || e.key == "ArrowDown") {
-      state.camRotAccel.set(0, 0);
-      state.camPanAccel.set(0, 0, 0);
-    }
-  });
-
   window.addEventListener("resize", onWindowResize);
 }
 
 function updatePointLight(app, cache, params, state) {
   app.pointLight.position.set(20 * Math.sin(state.time * 0.0003), 5, 12 * Math.cos(state.time * 0.0003));
   app.pointLight.intensity = 50;
-}
-
-function camControlLoop() {
-  const now = Date.now();
-  const dt = now - state.lastCamTime;
-  state.lastCamTime = now;
-
-  setTimeout(camControlLoop, Math.max(1, 14 - dt));
-
-  cache.v2.copy(state.camRotAccel).multiplyScalar(dt * 0.1);
-  state.camRotSpeed.add(cache.v2);
-  cache.v2.copy(state.camRotSpeed).multiplyScalar(dt * 0.1);
-  app.camAltitudeGroup.rotation.x += cache.v2.x;
-  app.camAzimuthGroup.rotation.y += cache.v2.y;
-
-  cache.v3.copy(state.camPanAccel).multiplyScalar(dt * 0.1);
-  state.camPanSpeed.add(cache.v3);
-  cache.v3.copy(state.camPanSpeed).multiplyScalar(dt * 0.1);
-  app.camPanGroup.position.add(cache.v3);
-
-  state.camRotSpeed.multiplyScalar(params.camRotDamping);
-  if (Math.abs(state.camRotSpeed.y) < params.camRotThrust * 0.3) state.camRotSpeed.y = 0;
-  if (Math.abs(state.camRotSpeed.x) < params.camRotThrust * 0.3) state.camRotSpeed.x = 0;
-
-  state.camPanSpeed.multiplyScalar(params.camPanDamping);
-  if (Math.abs(state.camPanSpeed.y) < params.camPanThrust * 0.03) state.camPanSpeed.y = 0;
-  if (Math.abs(state.camPanSpeed.x) < params.camPanThrust * 0.03) state.camPanSpeed.x = 0;
-  if (Math.abs(state.camPanSpeed.z) < params.camPanThrust * 0.03) state.camPanSpeed.z = 0;
 }
 
 function updateSails(dt) {
@@ -302,19 +224,8 @@ const commandContext = {
   setUpdateInstances: function (fun) {
     params.updateInstances = fun;
   },
-  slowCam: function () {
-    params.camRotThrust = 0.00008;
-    params.camRotDamping = 0.989;
-    params.camPanThrust = 0.001;
-    params.camPanDamping = 0.989;
-  },
-  fastCam: function () {
-    // Keep in sync with params definitin at top
-    params.camRotThrust = 0.0003;
-    params.camRotDamping = 0.989;
-    params.camPanThrust = 0.08;
-    params.camPanDamping = 0.989;
-  },
+  slowCam: () => slowCam(),
+  fastCam: () => fastCam(),
   reset: function () {
     app.updater.postMessage({reset: 1});
   },
