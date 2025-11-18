@@ -1,9 +1,10 @@
 Revive exiting stuff:
 OK Age & return to mask in GPU animation
 OK Message worker when simFieldMul, simSpeed etc. change
+OK Shadows
+-- No BG clear
 -- BG flashing lines
 -- Twirlie & size audio-reactivity
--- No BG clear
 OK Reset to mask
 
 Sail innovations:

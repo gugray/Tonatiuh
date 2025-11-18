@@ -15,6 +15,8 @@ const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
 
 const fadeInTime = 1000; // max 9000
 const fadeOutTime = 2000; // max 9000
+const shadowMapSz = 4096;
+const shadowCamDim = 40;
 const dbgShowLights = false;
 
 const app = {
@@ -27,6 +29,7 @@ const app = {
   txBlack: null,
   mMask: null,
   sails: [],
+  dirLights: [],
   pointLights: [],
 };
 
@@ -37,6 +40,7 @@ const params = {
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(4000),
+  useShadow: false,
   updateInstances: null,
 };
 
@@ -91,6 +95,7 @@ async function initApp() {
   app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
 
   initThree();
+  setUseShadow();
   initCameraCrane(app.maskScene, app.camera);
   initEvents();
   initReceiver(jsLiveSocketUrl, onSocketMessage);
@@ -142,12 +147,23 @@ function initThree() {
   function addDirLight(x, y, z, intensity) {
     const light = new THREE.DirectionalLight(0xffffff, intensity);
     light.position.set(x, y, z);
+    light.shadow.camera.top = shadowCamDim;
+    light.shadow.camera.left = -shadowCamDim;
+    light.shadow.camera.bottom = -shadowCamDim;
+    light.shadow.camera.right = shadowCamDim;
+    light.shadow.camera.near = 1;
+    light.shadow.camera.far = 500;
+    light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+    light.shadow.radius = 4;
     app.maskScene.add(light);
+    app.dirLights.push(light);
   }
 
   let plGeo, plMat;
   function addPointLight(setPos) {
     const light = new THREE.PointLight(0xffffff, 50, 0, 1.8);
+    light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+    light.shadow.radius = 4;
     app.pointLights.push(light);
     app.maskScene.add(light);
     light.userData.setPos = setPos;
@@ -181,6 +197,8 @@ function initThree() {
     pos.z = 20 * Math.cos(t * 0.00075);
   });
 
+  // app.scene.add(new THREE.CameraHelper(app.dirLights[1].shadow.camera));
+
   // Le masque
   const geometry = new THREE.BoxGeometry(0.2, 1.0, 0.2);
   const material = new THREE.MeshPhongMaterial({transparent: true});
@@ -193,6 +211,14 @@ function initThree() {
 
   // Sails scene
   app.sailScene = new THREE.Scene();
+}
+
+function setUseShadow() {
+  const isOn = params.useShadow;
+  for (const light of app.pointLights) light.castShadow = isOn;
+  for (const light of app.dirLights) light.castShadow = isOn;
+  app.renderer.shadowMap.enabled = isOn;
+  app.mMask.castShadow = app.mMask.receiveShadow = isOn;
 }
 
 function onWindowResize() {
@@ -259,6 +285,10 @@ const commandContext = {
   cache,
   params,
   state,
+  setUseShadow: function (isOn) {
+    params.useShadow = isOn;
+    setUseShadow();
+  },
   setUpdateInstances: function (fun) {
     params.updateInstances = fun;
   },
