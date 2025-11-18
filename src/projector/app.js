@@ -34,11 +34,14 @@ const params = {
   seed: 0,
   modelScale: 36,
   preserveBuffer: false,
-  simFieldMul: createParam(2.5), // 2.5 for original
+  simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(4000),
-  camRotThrust: 0.0005, // 0.0005
-  camPanThrust: 0.01, // 0.01
+  // Keep in sync with commandContext.fastCom
+  camRotThrust: 0.0003,
+  camRotDamping: 0.989,
+  camPanThrust: 0.008,
+  camPanDamping: 0.989,
   updateInstances: null,
 };
 
@@ -130,6 +133,8 @@ async function initApp() {
     app.scene.add(sail.mesh);
     app.sails.push(sail);
   });
+
+  // commandContext.slowCam();
 }
 
 function initThree() {
@@ -241,14 +246,14 @@ function camControlLoop() {
   cache.v3.copy(state.camPanSpeed).multiplyScalar(dt * 0.1);
   app.camPanGroup.position.add(cache.v3);
 
-  state.camRotSpeed.multiplyScalar(0.985);
-  if (Math.abs(state.camRotSpeed.y) < 0.0001) state.camRotSpeed.y = 0;
-  if (Math.abs(state.camRotSpeed.x) < 0.0001) state.camRotSpeed.x = 0;
+  state.camRotSpeed.multiplyScalar(params.camRotDamping);
+  if (Math.abs(state.camRotSpeed.y) < params.camRotThrust * 0.3) state.camRotSpeed.y = 0;
+  if (Math.abs(state.camRotSpeed.x) < params.camRotThrust * 0.3) state.camRotSpeed.x = 0;
 
-  state.camPanSpeed.multiplyScalar(0.985);
-  if (Math.abs(state.camPanSpeed.y) < 0.0001) state.camPanSpeed.y = 0;
-  if (Math.abs(state.camPanSpeed.x) < 0.0001) state.camPanSpeed.x = 0;
-  if (Math.abs(state.camPanSpeed.z) < 0.0001) state.camPanSpeed.z = 0;
+  state.camPanSpeed.multiplyScalar(params.camPanDamping);
+  if (Math.abs(state.camPanSpeed.y) < params.camPanThrust * 0.03) state.camPanSpeed.y = 0;
+  if (Math.abs(state.camPanSpeed.x) < params.camPanThrust * 0.03) state.camPanSpeed.x = 0;
+  if (Math.abs(state.camPanSpeed.z) < params.camPanThrust * 0.03) state.camPanSpeed.z = 0;
 }
 
 function updateSails(dt) {
@@ -296,6 +301,19 @@ const commandContext = {
   state,
   setUpdateInstances: function (fun) {
     params.updateInstances = fun;
+  },
+  slowCam: function () {
+    params.camRotThrust = 0.00008;
+    params.camRotDamping = 0.989;
+    params.camPanThrust = 0.001;
+    params.camPanDamping = 0.989;
+  },
+  fastCam: function () {
+    // Keep in sync with params definitin at top
+    params.camRotThrust = 0.0003;
+    params.camRotDamping = 0.989;
+    params.camPanThrust = 0.08;
+    params.camPanDamping = 0.989;
   },
   reset: function () {
     app.updater.postMessage({reset: 1});
