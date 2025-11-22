@@ -1,12 +1,15 @@
 params.modelScale = 36;
 params.preserveBuffer = false;
 params.simFieldMul.set(2.5);
-params.simSpeed.set(0.0001);
+params.simSpeed.set(0.000);
 
-setUpdateInstances((app, cache, params, state) => {
-  app.mMask.geometry.rotateY(0.01);
-  // const pointTo = "surface";
-  const pointTo = "field";
+setUpdateInstances((app, cache, params, dt, state) => {
+  // app.mMask.geometry.rotateY(0.01);
+  const pointTo = "surface";
+  // const pointTo = "field";
+  if (params.pointTwirlie) {
+    state.timeTwirlie += dt * 0.2 + state.audio.vol * 0.02;
+  }
   for (let i = 0; i < app.psys.count; ++i) {
     app.psys.getParticle(i, cache.prt);
     cache.obj.scale.set(1, 1, 1);
@@ -22,12 +25,26 @@ setUpdateInstances((app, cache, params, state) => {
       cache.obj.quaternion.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
     }
     // Funsies: lerp between surface and field direction
+    // TODO: Make this a param
     // cache.q1.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
     // cache.q2.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
     // const dlerp = (Math.cos(state.time * 0.0005) + 1) / 2;
     // cache.obj.quaternion.copy(cache.q1).slerp(cache.q2, dlerp);
+    // Twirlie around X and Y
+    if (params.pointTwirlie) {
+      const twirl =
+        Math.sin(cache.prt.mx / 4 + state.timeTwirlie * 0.0004) +
+        Math.sin(cache.prt.my / 4 + state.timeTwirlie * 0.0004) +
+        Math.sin(cache.prt.cz / 4 + state.timeTwirlie * 0.0004);
+      // cache.obj.rotation.y += twirl;
+      // cache.obj.rotation.x += twirl * 1.5;
+      cache.obj.rotation.y = twirl * 1.5;
+      cache.obj.rotation.x = twirl;
+    }
+    // Apply matrix
     cache.obj.updateMatrix();
     app.mMask.setMatrixAt(i, cache.obj.matrix);
+    // Update colors
     cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
     app.mMask.setColorAt(i, cache.clr);
   }

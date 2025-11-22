@@ -1,6 +1,6 @@
 params.simSpeed.inoutTo(0.0003, 3);
 
-params.stableAge.set(50000);
+params.stableAge.set(55000);
 
 reset();
 
@@ -19,3 +19,9 @@ slowCam();
 fastCam();
 
 resetCam();
+
+setUseShadow(false);
+
+setUseShadow(true);
+
+params.gain = 0.01;

@@ -6,7 +6,8 @@ OK BG flashing lines
 OK Audio analyzer
 OK Reset to mask
 OK No BG clear
--- Twirlie & size audio-reactivity
+OK Twirlie audio-reactivity
+-- Size audio-reactivity
 -- On-screen metrics
 
 Sail innovations:
@@ -23,6 +24,8 @@ OK Framerate-stable camera movements (use dt)
 OK Fast/slow camera
 OK Return camera to default
 OK More point lights; show them for dev
+-- Replace "surface vs field" with lerpable param
+-- Also lerp twirling amount from 0 to 1
 -- Smoothed volume
 -- Gray god
 -- "Re-seed" noise (ie random offsets in shader)

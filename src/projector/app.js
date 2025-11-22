@@ -46,15 +46,17 @@ const params = {
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(4000),
+  pointTwirlie: true,
   updateInstances: null,
-  renderBG: true,
-  gain: 0.01,
+  renderBG: false,
+  gain: 0.04,
   bgLinesPerFrame: createParam(0.2),
 };
 
 const state = {
   lastAnimTime: Date.now(),
   time: 0,
+  timeTwirlie: 0,
   audio: {lo: 0, mid: 0, hi: 0, vol: 0},
 };
 
@@ -177,7 +179,7 @@ function initThree() {
   let plGeo, plMat;
   function addPointLight(setPos) {
     const light = new THREE.PointLight(0xffffff, 50, 0, 1.8);
-    light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+    light.shadow.mapSize.set(1024, 1204);
     light.shadow.radius = 4;
     app.pointLights.push(light);
     app.maskScene.add(light);
@@ -314,7 +316,7 @@ function animate() {
   updateParams(dt);
   updatePointLights(app, cache, params, state);
   updateSails(dt);
-  params.updateInstances(app, cache, params, state);
+  params.updateInstances(app, cache, params, dt, state);
 
   app.bgLines.renderBackie();
 

@@ -130,6 +130,10 @@ function updateParticle(i, dt) {
 }
 
 function updateSimulation(dt) {
+  // If simulation speed is 0, not updating
+  // This helps prevent ageing of particles
+  if (simSpeed == 0) return;
+
   // Age is set in calc-velo
   //      0 < age           is what it is
   //  -9000 < age < 0       fading in
