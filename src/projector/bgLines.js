@@ -54,8 +54,8 @@ export class BackgroundLines {
     this.clr.set(clrHex);
     const hsl = {};
     this.clr.getHSL(hsl);
-    hsl.s = Math.min(0.5, this.audio.hi / 256);
-    hsl.l = Math.min(1, this.audio.vol / 8192);
+    hsl.s = Math.min(0.5, this.audio.hi * 200);
+    hsl.l = Math.min(1, this.audio.vol * 0.5);
     this.clr.setHSL(hsl.h, hsl.s, hsl.l);
     this.ctx.strokeStyle = "#" + this.clr.getHexString();
     for (let i = 0; i < nPerFrame; ++i) {

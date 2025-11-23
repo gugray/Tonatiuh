@@ -5,11 +5,11 @@ import {loadModelFromPLY, ParticleData, setFadeTimes} from "./particleSystem.js"
 import {initCameraCrane, slowCam, fastCam, resetCam} from "./cameraCrane.js";
 import {BackgroundLines} from "./bgLines.js";
 import {Sail} from "./sail.js";
-import * as AU from "./audio.js";
+import {Audio, connectAudioAPI} from "./audio.js";
+import {Metrics} from "./metrics.js";
 import * as CL from "./codeLayer.js";
 import * as CG from "./customGeo.js";
 import * as THREE from "three";
-import {connectAudioAPI} from "../01-modelp/fft.js";
 
 // https://sketchfab.com/3d-models/tonatiuh-9db1f3a422c149ceade14a9c294d4e8a
 const modelUrl = "data/tonatiuh-32k.ply";
@@ -35,7 +35,9 @@ const app = {
   dirLights: [],
   pointLights: [],
   allColors: [],
+  audio: null,
   bgLines: null,
+  metrics: null,
 };
 
 const params = {
@@ -46,18 +48,18 @@ const params = {
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(4000),
-  pointTwirlie: true,
+  pointTwirlie: false,
+  dynScale: createParam(0),
   updateInstances: null,
   renderBG: false,
-  gain: 0.04,
-  bgLinesPerFrame: createParam(0.2),
+  gain: 0.02,
+  bgLinesPerFrame: createParam(0.1),
 };
 
 const state = {
   lastAnimTime: Date.now(),
   time: 0,
   timeTwirlie: 0,
-  audio: {lo: 0, mid: 0, hi: 0, vol: 0},
 };
 
 const cache = {
@@ -107,7 +109,9 @@ async function initApp() {
   );
 
   app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
-  app.bgLines = new BackgroundLines(document.getElementById("canv2"), app.allColors, params, state.audio);
+  app.audio = new Audio();
+  app.bgLines = new BackgroundLines(document.getElementById("canv2"), app.allColors, params, app.audio);
+  app.metrics = new Metrics(app.audio);
 
   initThree();
   setUseShadow();
@@ -258,7 +262,7 @@ function initEvents() {
       e.stopPropagation();
     } //
     else if (e.key == "a") {
-      AU.connectAudioAPI(params.gain);
+      connectAudioAPI(params.gain);
     } //
     else if (e.key == "c") {
       app.renderer.clear();
@@ -266,9 +270,9 @@ function initEvents() {
     else if (e.key == "p") {
       params.preserveBuffer = !params.preserveBuffer;
     } //
-    // else if (e.key == "m") {
-    //   toggleMetrics();
-    // }
+    else if (e.key == "m") {
+      app.metrics.toggle();
+    }
   });
 }
 
@@ -296,23 +300,13 @@ function updateSails(dt) {
   }
 }
 
-function updateAudio() {
-  const spectrum = AU.updateFFT();
-  const a = state.audio;
-  if (spectrum) [a.lo, a.mid, a.hi, a.vol] = spectrum;
-  else [a.lo, a.mid, a.hi, a.vol] = [0, 0, 0, 0];
-  const volPercent = ((state.vol / 2048) * 100).toFixed(2);
-  // elmVolumeVal.style.height = volPercent + "%";
-  AU.setGain(params.gain);
-}
-
 function animate() {
   const now = Date.now();
   const dt = now - state.lastAnimTime;
   state.time += dt;
   state.lastAnimTime = now;
 
-  updateAudio();
+  app.audio.update();
   updateParams(dt);
   updatePointLights(app, cache, params, state);
   updateSails(dt);
@@ -331,6 +325,7 @@ function animate() {
     simSpeed: params.simSpeed.get(),
     stableAge: params.stableAge.get(),
   });
+  app.metrics.update();
 
   requestAnimationFrame(animate);
 }

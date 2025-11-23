@@ -8,11 +8,13 @@ setUpdateInstances((app, cache, params, dt, state) => {
   const pointTo = "surface";
   // const pointTo = "field";
   if (params.pointTwirlie) {
-    state.timeTwirlie += dt * 0.2 + state.audio.vol * 0.02;
+    state.timeTwirlie += dt * 0.2 + app.audio.vol * 100;
   }
+  const dsa = 1 - 0.1 * params.dynScale.get();
+  const dsb = params.dynScale.get() * app.audio.vol;
   for (let i = 0; i < app.psys.count; ++i) {
     app.psys.getParticle(i, cache.prt);
-    cache.obj.scale.set(1, 1, 1);
+    cache.obj.scale.set(dsa + dsb, 1.2, dsa + dsb);
     cache.obj.scale.multiplyScalar(cache.prt.lifeEdgeScale());
     cache.obj.position.set(cache.prt.cx, cache.prt.cy, cache.prt.cz);
     cache.obj.position.multiplyScalar(params.modelScale);

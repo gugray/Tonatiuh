@@ -7,8 +7,8 @@ OK Audio analyzer
 OK Reset to mask
 OK No BG clear
 OK Twirlie audio-reactivity
--- Size audio-reactivity
--- On-screen metrics
+OK Size audio-reactivity
+OK On-screen metrics
 
 Sail innovations:
 OK Right-size sails
@@ -26,11 +26,11 @@ OK Return camera to default
 OK More point lights; show them for dev
 -- Replace "surface vs field" with lerpable param
 -- Also lerp twirling amount from 0 to 1
--- Smoothed volume
+OK Smoothed volume
 -- Gray god
 -- "Re-seed" noise (ie random offsets in shader)
 OK Instance rotation calculated in worker
--- Game controller; or disable windows button?
+-- Disable windows button
 
 Effect ideas:
 -- Synaptic wave animation
