@@ -16,7 +16,7 @@ uniform float rand;
 out vec4 outColor;
 
 float getBirthAge(vec2 coord) {
-    float birthAge = stableAge * gold_noise(coord, rand) * 0.9;
+    float birthAge = stableAge * gold_noise(coord, rand * 100.0) * 0.9;
     return -20000.0 - birthAge;
 }
 
@@ -27,7 +27,7 @@ void main() {
 
     // Resetting
     if (reset != 0.0) {
-        age = getBirthAge(gl_FragCoord.xy);
+        age = getBirthAge(pos.xy);
         pos = texelFetch(txSurf, ivec2(gl_FragCoord.xy), 0).xyz;
     }
     // Particle exceeds age? Go to fade-out

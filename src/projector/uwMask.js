@@ -104,6 +104,7 @@ const quat = new THREE.Quaternion();
 
 function updateParticle(i, dt) {
   psys.getParticle(i, prt);
+  const prevAge = prt.age;
 
   prt.vx = arrVelo[i * 4];
   prt.vy = arrVelo[i * 4 + 1];
@@ -122,11 +123,16 @@ function updateParticle(i, dt) {
   prt.vqz = quat.z;
   prt.vqw = quat.w;
 
+  // Previous age was <= 10000 (fading out) and now it's not: distance resets to 0
+  // Otherwise distance grows
+  if (prevAge <= -10000 && prt.age > -10000) prt.dist = 0;
+  else prt.dist += dt;
+
   // prettier-ignore
   psys.updateParticle(i, prt.cx, prt.cy, prt.cz,
     prt.vx, prt.vy, prt.vz,
     prt.vqx, prt.vqy, prt.vqz, prt.vqw,
-    prt.age, 0);
+    prt.age, prt.dist);
 }
 
 function updateSimulation(dt) {
