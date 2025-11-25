@@ -18,8 +18,8 @@ const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
 
 const fadeInTime = 1000; // max 9000
 const fadeOutTime = 2000; // max 9000
-const shadowMapSz = 4096;
-const shadowCamDim = 40;
+const shadowMapSz = 8192; // 4096
+const shadowCamDim = 10; // 40
 const dbgShowLights = false;
 
 const app = {
@@ -49,8 +49,9 @@ const params = {
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(40000),
-  pointTwirlie: false,
-  dynScale: createParam(0),
+  surfOrField: createParam(0), // 0 is surface, 1 is field
+  pointTwirlie: createParam(0), // How much twirling is mixed in
+  dynScale: createParam(0), // Scale box size by volume
   renderBG: false,
   gain: 0.02,
   bgLinesPerFrame: createParam(0.05),
@@ -110,7 +111,7 @@ async function initApp() {
 
   app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
   app.audio = new Audio();
-  // app.bgImg = await CG.loadImageAsync("/data/blur-bg-lg.jpg");
+  app.bgImg = await CG.loadImageAsync("/data/blur-bg-lg.jpg");
   app.bgLines = new BackgroundLines(document.getElementById("canv2"), app.allColors, params, app.audio, app.bgImg);
   app.metrics = new Metrics(app.audio);
 
@@ -242,8 +243,28 @@ function initThree() {
 
 function setUseShadow() {
   const isOn = params.useShadow;
-  for (const light of app.pointLights) light.castShadow = isOn;
-  for (const light of app.dirLights) light.castShadow = isOn;
+  for (const light of app.pointLights) {
+    light.castShadow = isOn;
+    light.shadow.camera.top = shadowCamDim;
+    light.shadow.camera.left = -shadowCamDim;
+    light.shadow.camera.bottom = -shadowCamDim;
+    light.shadow.camera.right = shadowCamDim;
+    light.shadow.camera.near = 1;
+    light.shadow.camera.far = 500;
+    light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+    light.shadow.radius = 4;
+  }
+  for (const light of app.dirLights) {
+    light.castShadow = isOn;
+    light.shadow.camera.top = shadowCamDim;
+    light.shadow.camera.left = -shadowCamDim;
+    light.shadow.camera.bottom = -shadowCamDim;
+    light.shadow.camera.right = shadowCamDim;
+    light.shadow.camera.near = 1;
+    light.shadow.camera.far = 500;
+    light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+    light.shadow.radius = 4;
+  }
   app.renderer.shadowMap.enabled = isOn;
   app.mMask.castShadow = app.mMask.receiveShadow = isOn;
 }
@@ -308,10 +329,8 @@ function updateSails(dt) {
 function updateInstances(app, cache, params, dt, state) {
   // app.mMask.geometry.rotateY(0.01);
 
-  // const pointTo = "surface";
-  const pointTo = "field";
-
-  if (params.pointTwirlie) {
+  const pointTwirlie = params.pointTwirlie.get();
+  if (pointTwirlie != 0) {
     state.timeTwirlie += dt * 0.2 + app.audio.vol * 100;
   }
 
@@ -330,30 +349,21 @@ function updateInstances(app, cache, params, dt, state) {
     cache.obj.scale.z *= dsa + dsb;
     cache.obj.scale.multiplyScalar(cache.prt.lifeEdgeScale());
 
-    // Where should boxes point? Flow field, or surface normal
-    if (pointTo == "surface") {
-      cache.obj.quaternion.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
-    }
-    // Flow field
-    else if (pointTo == "field") {
-      cache.obj.quaternion.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
-    }
-
-    // Funsies: lerp between surface and field direction
-    // TODO: Make this a param
-    // cache.q1.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
-    // cache.q2.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
-    // const dlerp = (Math.cos(state.time * 0.0005) + 1) / 2;
-    // cache.obj.quaternion.copy(cache.q1).slerp(cache.q2, dlerp);
+    // Quaternion that points box to surface normal
+    cache.q1.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
+    // Quaternion that points box to flow field
+    cache.q2.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
+    // Lerp between surface and field direction
+    cache.obj.quaternion.copy(cache.q1).slerp(cache.q2, params.surfOrField.get());
 
     // Twirlie around X and Y
-    if (params.pointTwirlie) {
+    if (pointTwirlie != 0) {
       const twirl =
         Math.sin(cache.prt.mx / 4 + state.timeTwirlie * 0.0004) +
         Math.sin(cache.prt.my / 4 + state.timeTwirlie * 0.0004) +
         Math.sin(cache.prt.cz / 4 + state.timeTwirlie * 0.0004);
-      cache.obj.rotation.y = twirl * 1.5;
-      cache.obj.rotation.x = twirl;
+      cache.obj.rotation.y += pointTwirlie * twirl * 1.5;
+      cache.obj.rotation.x += pointTwirlie * twirl;
     }
 
     // Apply matrix

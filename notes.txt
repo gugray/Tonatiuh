@@ -1,3 +1,6 @@
+Bugs:
+-- Fix "reset"
+
 Revive exiting stuff:
 OK Age & return to mask in GPU animation
 OK Message worker when simFieldMul, simSpeed etc. change
@@ -24,8 +27,9 @@ OK Framerate-stable camera movements (use dt)
 OK Fast/slow camera
 OK Return camera to default
 OK More point lights; show them for dev
--- Replace "surface vs field" with lerpable param
--- Also lerp twirling amount from 0 to 1
+OK Replace "surface vs field" with lerpable param
+OK Also lerp twirling amount from 0 to 1
+-- Lengthwise rotation speed
 OK Smoothed volume
 -- Gray god
 -- "Re-seed" noise (ie random offsets in shader)
@@ -34,13 +38,13 @@ OK Instance rotation calculated in worker
 
 Effect ideas:
 XX Synaptic wave animation
--- Scale out of existence (and back), all boxes simultaneously
--- Soft color bg: based on noise: pan when rotating, not true panorama
+OK Soft color bg: based on noise: pan when rotating, not true panorama
    Zoom can move in Z dim
--- Starry sky; similar effect as bg noise?
 -- Vignette
 
-New stuff maybe:
+For later, maybe:
+-- Scale out of existence (and back), all boxes simultaneously
+-- Starry sky; similar effect as bg noise?
 -- Sails: Rolling sine wave
 -- Sails: Audioreactivity
 -- Per-instance opacity attribute? Or just global?
