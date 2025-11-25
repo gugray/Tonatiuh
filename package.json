@@ -1,8 +1,8 @@
 {
-  "name": "threebies",
+  "name": "tonatiuh",
   "type": "module",
-  "version": "0.0.1",
-  "description": "ThreeJS livecoding",
+  "version": "0.0.0",
+  "description": "Inside the mind of an Aztec god",
   "license": "MIT",
   "author": {
     "name": "Gábor L Ugray",
