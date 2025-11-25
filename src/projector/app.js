@@ -47,10 +47,9 @@ const params = {
   useShadow: false,
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
-  stableAge: createParam(4000),
+  stableAge: createParam(40000),
   pointTwirlie: false,
   dynScale: createParam(0),
-  updateInstances: null,
   renderBG: false,
   gain: 0.02,
   bgLinesPerFrame: createParam(0.1),
@@ -122,13 +121,12 @@ async function initApp() {
   onWindowResize();
 
   // Execute liveInit.ljs
-  // This sets update functions!
-  const initLive = await (await fetch("liveInit.ljs")).text();
-  const cutoff = initLive.indexOf("// END INIT");
-  onSocketMessage({
-    source: "js",
-    content: initLive.substring(0, cutoff),
-  });
+  // const initLive = await (await fetch("liveInit.ljs")).text();
+  // const cutoff = initLive.indexOf("// END INIT");
+  // onSocketMessage({
+  //   source: "js",
+  //   content: initLive.substring(0, cutoff),
+  // });
 
   // Start the movie
   animate();
@@ -300,6 +298,85 @@ function updateSails(dt) {
   }
 }
 
+function updateInstances(app, cache, params, dt, state) {
+  // app.mMask.geometry.rotateY(0.01);
+
+  // const pointTo = "surface";
+  const pointTo = "field";
+
+  if (params.pointTwirlie) {
+    state.timeTwirlie += dt * 0.2 + app.audio.vol * 100;
+  }
+
+  // Dynamic (audio-reactive) scaling
+  const dsa = 1 - 0.1 * params.dynScale.get();
+  const dsb = params.dynScale.get() * app.audio.vol;
+
+  // Full lifetime
+  const fullLife = fadeInTime + params.stableAge.get() + fadeOutTime;
+
+  for (let i = 0; i < app.psys.count; ++i) {
+    app.psys.getParticle(i, cache.prt);
+
+    let t = cache.prt.dist / fullLife;
+    let delta = 0; // runs -1 => +1
+    delta = state.time / 5000 - Math.floor(state.time / 5000);
+    delta = delta * 2 - 1;
+    t = Math.exp(-4 * ((t - delta) * 2 - 1) * ((t - delta) * 2 - 1));
+
+    cache.obj.position.set(cache.prt.cx, cache.prt.cy, cache.prt.cz);
+    cache.obj.position.multiplyScalar(params.modelScale);
+    // cache.obj.position.y += t * 5 * Math.sin(cache.obj.position.z + state.time * 0.005);
+
+    cache.obj.scale.set(1, 1.2, 1);
+    cache.obj.scale.x *= dsa + dsb;
+    cache.obj.scale.z *= dsa + dsb;
+    cache.obj.scale.multiplyScalar(cache.prt.lifeEdgeScale());
+
+    // cache.obj.scale.x *= t * 1.3 + 0.2;
+    // cache.obj.scale.z *= t * 1.3 + 0.2;
+    cache.obj.scale.y *= t * 1.3 + 0.05;
+
+    // Where should boxes point? Flow field, or surface normal
+    if (pointTo == "surface") {
+      cache.obj.quaternion.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
+    }
+    // Flow field
+    else if (pointTo == "field") {
+      cache.obj.quaternion.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
+    }
+
+    // Funsies: lerp between surface and field direction
+    // TODO: Make this a param
+    // cache.q1.set(cache.prt.nqx, cache.prt.nqy, cache.prt.nqz, cache.prt.nqw);
+    // cache.q2.set(cache.prt.vqx, cache.prt.vqy, cache.prt.vqz, cache.prt.vqw);
+    // const dlerp = (Math.cos(state.time * 0.0005) + 1) / 2;
+    // cache.obj.quaternion.copy(cache.q1).slerp(cache.q2, dlerp);
+
+    // Twirlie around X and Y
+    if (params.pointTwirlie) {
+      const twirl =
+        Math.sin(cache.prt.mx / 4 + state.timeTwirlie * 0.0004) +
+        Math.sin(cache.prt.my / 4 + state.timeTwirlie * 0.0004) +
+        Math.sin(cache.prt.cz / 4 + state.timeTwirlie * 0.0004);
+      cache.obj.rotation.y = twirl * 1.5;
+      cache.obj.rotation.x = twirl;
+    }
+
+    // Apply matrix
+    cache.obj.updateMatrix();
+    app.mMask.setMatrixAt(i, cache.obj.matrix);
+
+    // Update colors
+    cache.clr.set(cache.prt.r / 64, cache.prt.g / 64, cache.prt.b / 64);
+    app.mMask.setColorAt(i, cache.clr);
+  }
+
+  app.mMask.material.opacity = 1.0;
+  app.mMask.instanceMatrix.needsUpdate = true;
+  app.mMask.computeBoundingSphere();
+}
+
 function animate() {
   const now = Date.now();
   const dt = now - state.lastAnimTime;
@@ -310,7 +387,7 @@ function animate() {
   updateParams(dt);
   updatePointLights(app, cache, params, state);
   updateSails(dt);
-  params.updateInstances(app, cache, params, dt, state);
+  updateInstances(app, cache, params, dt, state);
 
   app.bgLines.renderBackie();
 
@@ -338,9 +415,6 @@ const commandContext = {
   setUseShadow: function (isOn) {
     params.useShadow = isOn;
     setUseShadow();
-  },
-  setUpdateInstances: function (fun) {
-    params.updateInstances = fun;
   },
   slowCam: () => slowCam(),
   fastCam: () => fastCam(),
