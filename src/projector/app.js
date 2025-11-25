@@ -312,30 +312,16 @@ function updateInstances(app, cache, params, dt, state) {
   const dsa = 1 - 0.1 * params.dynScale.get();
   const dsb = params.dynScale.get() * app.audio.vol;
 
-  // Full lifetime
-  const fullLife = fadeInTime + params.stableAge.get() + fadeOutTime;
-
   for (let i = 0; i < app.psys.count; ++i) {
     app.psys.getParticle(i, cache.prt);
 
-    let t = cache.prt.dist / fullLife;
-    let delta = 0; // runs -1 => +1
-    delta = state.time / 5000 - Math.floor(state.time / 5000);
-    delta = delta * 2 - 1;
-    t = Math.exp(-4 * ((t - delta) * 2 - 1) * ((t - delta) * 2 - 1));
-
     cache.obj.position.set(cache.prt.cx, cache.prt.cy, cache.prt.cz);
     cache.obj.position.multiplyScalar(params.modelScale);
-    // cache.obj.position.y += t * 5 * Math.sin(cache.obj.position.z + state.time * 0.005);
 
     cache.obj.scale.set(1, 1.2, 1);
     cache.obj.scale.x *= dsa + dsb;
     cache.obj.scale.z *= dsa + dsb;
     cache.obj.scale.multiplyScalar(cache.prt.lifeEdgeScale());
-
-    // cache.obj.scale.x *= t * 1.3 + 0.2;
-    // cache.obj.scale.z *= t * 1.3 + 0.2;
-    cache.obj.scale.y *= t * 1.3 + 0.05;
 
     // Where should boxes point? Flow field, or surface normal
     if (pointTo == "surface") {

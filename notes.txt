@@ -33,7 +33,7 @@ OK Instance rotation calculated in worker
 -- Disable windows button
 
 Effect ideas:
--- Synaptic wave animation
+XX Synaptic wave animation
 -- Scale out of existence (and back), all boxes simultaneously
 -- Soft color bg: based on noise: pan when rotating, not true panorama
    Zoom can move in Z dim
