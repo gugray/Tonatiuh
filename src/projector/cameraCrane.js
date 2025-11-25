@@ -25,8 +25,9 @@ const camPanAccel = new THREE.Vector3(); // x, y: pan; z: distance
 const camPanSpeed = new THREE.Vector3(); // x, y: pan; z: distance
 let lastCamTime = 0;
 let homingAnim = null;
+let camChangeListener = null;
 
-export function initCameraCrane(scene, camera) {
+export function initCameraCrane(scene, camera, _camChangeListener) {
   camPanGroup.position.z = startZ;
   camPanGroup.add(camera);
   camAltitudeGroup.add(camPanGroup);
@@ -36,6 +37,7 @@ export function initCameraCrane(scene, camera) {
   lastCamTime = Date.now();
   setTimeout(camControlLoop, 30);
   initCamControlEvents();
+  camChangeListener = _camChangeListener;
 }
 
 export function slowCam() {
@@ -90,6 +92,11 @@ function initCamControlEvents() {
   });
 }
 
+function notifyListener() {
+  if (!camChangeListener) return;
+  camChangeListener(camAzimuthGroup.rotation.y, camAltitudeGroup.rotation.x, camPanGroup.position.z);
+}
+
 function camControlLoop() {
   const now = Date.now();
   const dt = now - lastCamTime;
@@ -101,6 +108,7 @@ function camControlLoop() {
   if (homingAnim) {
     homingAnim.update(dt);
     if (homingAnim.isFinished()) homingAnim = null;
+    notifyListener();
     return;
   }
 
@@ -114,6 +122,8 @@ function camControlLoop() {
   camPanSpeed.add(v3);
   v3.copy(camPanSpeed).multiplyScalar(dt * 0.1);
   camPanGroup.position.add(v3);
+
+  if (v2.x != 0 || v2.y != 0 || v3.z != 0) notifyListener();
 
   const rdamp = Math.pow(camRotDamping, dt * 0.1);
   camRotSpeed.multiplyScalar(rdamp);

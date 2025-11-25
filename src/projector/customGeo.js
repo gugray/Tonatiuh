@@ -11,6 +11,15 @@ export async function loadTextureAsync(url) {
   });
 }
 
+export async function loadImageAsync(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 export function hackBoxMaterial(geo, mat) {
   mat.onBeforeCompile = (shader) => {
     // This comes first in code => we'll use mapColor later.

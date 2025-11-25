@@ -30,6 +30,7 @@ const app = {
   camera: null,
   renderer: null,
   txBlack: null,
+  bgImg: null,
   mMask: null,
   sails: [],
   dirLights: [],
@@ -52,7 +53,7 @@ const params = {
   dynScale: createParam(0),
   renderBG: false,
   gain: 0.02,
-  bgLinesPerFrame: createParam(0.1),
+  bgLinesPerFrame: createParam(0.05),
 };
 
 const state = {
@@ -109,12 +110,13 @@ async function initApp() {
 
   app.txBlack = await CG.loadTextureAsync("/data/black1px.png");
   app.audio = new Audio();
-  app.bgLines = new BackgroundLines(document.getElementById("canv2"), app.allColors, params, app.audio);
+  // app.bgImg = await CG.loadImageAsync("/data/blur-bg-lg.jpg");
+  app.bgLines = new BackgroundLines(document.getElementById("canv2"), app.allColors, params, app.audio, app.bgImg);
   app.metrics = new Metrics(app.audio);
 
   initThree();
   setUseShadow();
-  initCameraCrane(app.maskScene, app.camera);
+  initCameraCrane(app.maskScene, app.camera, onCamMove);
   initEvents();
   initReceiver(jsLiveSocketUrl, onSocketMessage);
   if (tidalLiveSocketUrl) initReceiver(tidalLiveSocketUrl, onSocketMessage);
@@ -144,10 +146,15 @@ async function initApp() {
   });
 }
 
+function onCamMove(azim, alt, dist) {
+  app.bgLines.viewChanged(azim, alt, Math.abs(dist));
+}
+
 function initThree() {
   // Mask scene
   app.maskScene = new THREE.Scene();
   app.maskScene.background = null;
+
   app.maskScene.fog = new THREE.FogExp2(0x000000, 0.015);
   app.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
