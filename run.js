@@ -57,7 +57,8 @@ async function runProjector() {
   const dataPath = path.join(basePath, "data");
 
   // Cotext for main app
-  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "liveInit.ljs", "uw*.js"];
+  const entryPoints = ["index.html", "prism.css", "app.css", "app.js", "uw*.js"];
+  // entryPoints.push("liveInit.ljs");
   for (let i = 0; i < entryPoints.length; ++i) entryPoints[i] = path.join(basePath, entryPoints[i]);
 
   if (fs.existsSync(dataPath)) entryPoints.push(dataPath + "/*");

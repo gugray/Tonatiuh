@@ -11,6 +11,7 @@ const camAzimuthGroup = new THREE.Group();
 // Cache
 const v2 = new THREE.Vector2();
 const v3 = new THREE.Vector3();
+const vpan = new THREE.Vector3();
 
 // Control params; keep initial values in sync with fastCam()
 let camRotThrust = 0.0003;
@@ -26,10 +27,12 @@ const camPanSpeed = new THREE.Vector3(); // x, y: pan; z: distance
 let lastCamTime = 0;
 let homingAnim = null;
 let camChangeListener = null;
+let camera;
 
-export function initCameraCrane(scene, camera, _camChangeListener) {
+export function initCameraCrane(scene, _camera, _camChangeListener) {
+  camera = _camera;
   camPanGroup.position.z = startZ;
-  camPanGroup.add(camera);
+  camPanGroup.add(_camera);
   camAltitudeGroup.add(camPanGroup);
   camAzimuthGroup.add(camAltitudeGroup);
   scene.add(camAzimuthGroup);
@@ -38,6 +41,7 @@ export function initCameraCrane(scene, camera, _camChangeListener) {
   setTimeout(camControlLoop, 30);
   initCamControlEvents();
   camChangeListener = _camChangeListener;
+  notifyListeners();
 }
 
 export function slowCam() {
@@ -102,9 +106,10 @@ function initCamControlEvents() {
   });
 }
 
-function notifyListener() {
+function notifyListeners() {
   if (!camChangeListener) return;
-  camChangeListener(camAzimuthGroup.rotation.y, camAltitudeGroup.rotation.x, camPanGroup.position.z);
+  vpan.copy(camPanGroup.position);
+  camChangeListener(camAzimuthGroup.rotation.y, camAltitudeGroup.rotation.x, vpan);
 }
 
 function camControlLoop() {
@@ -118,7 +123,7 @@ function camControlLoop() {
   if (homingAnim) {
     homingAnim.update(dt);
     if (homingAnim.isFinished()) homingAnim = null;
-    notifyListener();
+    notifyListeners();
     return;
   }
 
@@ -133,7 +138,9 @@ function camControlLoop() {
   v3.copy(camPanSpeed).multiplyScalar(dt * 0.1);
   camPanGroup.position.add(v3);
 
-  if (v2.x != 0 || v2.y != 0 || v3.z != 0) notifyListener();
+  if (v2.x != 0 || v2.y != 0 || v3.x != 0 || v3.y != 0 || v3.z != 0) {
+    notifyListeners();
+  }
 
   const rdamp = Math.pow(camRotDamping, dt * 0.1);
   camRotSpeed.multiplyScalar(rdamp);

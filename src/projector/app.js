@@ -18,6 +18,7 @@ const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
 
 const fadeInTime = 1000; // max 9000
 const fadeOutTime = 2000; // max 9000
+const sailLifeMsec = 10000;
 const shadowMapSz = 4096; // 4096
 const shadowCamDim = 20; // 40
 const dbgShowLights = false;
@@ -63,6 +64,9 @@ const params = {
 const state = {
   lastAnimTime: Date.now(),
   time: 0,
+  camAzim: 0,
+  camAlt: 0,
+  camPan: new THREE.Vector3(),
   twirlieVal: 0,
   lengthRotVal: 0,
 };
@@ -79,6 +83,7 @@ const cache = {
   axis: new THREE.Vector3(),
   clr: new THREE.Color(),
   prt: new ParticleData(),
+  camPos: new THREE.Vector3(),
 };
 
 async function initApp() {
@@ -127,33 +132,30 @@ async function initApp() {
   if (tidalLiveSocketUrl) initReceiver(tidalLiveSocketUrl, onSocketMessage);
   onWindowResize();
 
-  // Execute liveInit.ljs
-  // const initLive = await (await fetch("liveInit.ljs")).text();
-  // const cutoff = initLive.indexOf("// END INIT");
-  // onSocketMessage({
-  //   source: "js",
-  //   content: initLive.substring(0, cutoff),
-  // });
-
   // Start the movie
   animate();
 
   // Audio code messages onto sails
   CL.setTidalOffscreen(params.codeOffScreen);
-  // setTimeout(() => {
-  //   CL.fillTidalSamples();
-  // }, 500);
   CL.onTidalCanvasUpdated((canvas) => {
     if (!params.codeOffScreen) return;
+    app.camera.getWorldPosition(cache.camPos);
     const tx = new THREE.CanvasTexture(canvas);
-    const sail = new Sail(tx, canvas.width, canvas.height, 8000);
+    const sail = new Sail(tx, canvas.width, canvas.height, state.camAzim, state.camAlt, state.camPan, sailLifeMsec);
     app.sailScene.add(sail.mesh);
     app.sails.push(sail);
   });
+  // DBG ~ Float some messages
+  // setTimeout(() => {
+  //   CL.fillTidalSamples();
+  // }, 500);
 }
 
-function onCamMove(azim, alt, dist) {
-  app.bgLines.viewChanged(azim, alt, Math.abs(dist));
+function onCamMove(azim, alt, pan) {
+  app.bgLines.viewChanged(azim, alt, Math.abs(pan.z));
+  state.camAzim = azim;
+  state.camAlt = alt;
+  state.camPan.copy(pan);
 }
 
 function initThree() {

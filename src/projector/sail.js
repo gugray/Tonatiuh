@@ -4,12 +4,15 @@ import {simplex3curl} from "./curl.js";
 
 const simFieldMul = 1;
 const simSpeed = 0.00002;
+const initDistFromCam = 40;
+const easeInMsec = 400;
+const easeOutMsec = 4000;
 
 noise.seed(0);
 let renderOrder = 1000;
 
 export class Sail {
-  constructor(tx, w, h, lifeTime) {
+  constructor(tx, w, h, camAzim, camAlt, camPan, lifeTime) {
     const szHoriz = 1;
     const szVert = h / w;
     const nHoriz = Math.round(w / 5);
@@ -23,7 +26,7 @@ export class Sail {
     // Geometry
     this.mesh = makeCodeSailMesh(tx, nHoriz, nVert, new Float32Array(this.sarrBuf));
     this.mesh.scale.set(w / 20, w / 20, 1);
-    this.mesh.position.z = 13;
+    positionMesh(this.mesh, camAzim, camAlt, camPan);
     this.mesh.material.map = tx;
     this.mesh.material.needsUpdate = true;
     // Vertex position updater in worker thread
@@ -80,25 +83,68 @@ export class Sail {
     posAttribute.needsUpdate = true;
     this.mesh.geometry.computeVertexNormals();
 
-    // Update strength via our custom uniform
-    const easeInMsec = 400;
-    // Ease in quickly
+    // Fading in and out
+    const easeOutStart = this.lifeTime - easeOutMsec;
     let strength;
+    // Ease in quickly
     if (this.age <= easeInMsec) {
       let t = this.age / easeInMsec;
       strength = t * t;
     }
-    // Ease out over full lifetime
+    // Sustain
+    else if (this.age < easeOutStart) strength = 1;
+    // Ease out
     else {
-      let t = (this.age - easeInMsec) / (this.lifeTime - easeInMsec);
+      let t = (this.age - easeOutStart) / easeOutMsec;
       strength = (1 - t) * (1 - t);
     }
     if (strength > 1) strength = 1;
     else if (strength < 0) strength = 0;
+
+    // Update strength via our custom uniform
     if (this.mesh.material.userData.hasOwnProperty("strength")) {
       this.mesh.material.userData.strength.value = strength;
     }
   }
+}
+
+function positionMesh(mesh, camAzim, camAlt, camPan) {
+  // Recreate camera position, which includes pan
+  // And camera direction, which is before XY pan
+  const dirObj = new THREE.Object3D();
+  const dirGroup = new THREE.Group();
+  dirGroup.add(dirObj);
+  const camObj = new THREE.Object3D();
+  const panGroup = new THREE.Group();
+  panGroup.add(camObj);
+  const altGroup = new THREE.Group();
+  altGroup.add(panGroup);
+  altGroup.add(dirGroup);
+  const azimGroup = new THREE.Group();
+  azimGroup.add(altGroup);
+  panGroup.position.copy(camPan);
+  dirGroup.position.z = camPan.z;
+  altGroup.rotation.x = camAlt;
+  azimGroup.rotation.y = camAzim;
+  camObj.updateMatrix();
+  dirObj.updateMatrix();
+
+  // Camera direction in world
+  const dir = new THREE.Vector3();
+  dirObj.getWorldPosition(dir);
+  dir.normalize().multiplyScalar(-1);
+
+  // Camera position in world
+  const pos = new THREE.Vector3();
+  camObj.getWorldPosition(pos);
+  const quat = new THREE.Quaternion();
+  camObj.getWorldQuaternion(quat);
+
+  // Put sail in front of camera
+  mesh.quaternion.copy(quat);
+  mesh.updateMatrix();
+  mesh.position.copy(pos);
+  mesh.position.add(dir.clone().multiplyScalar(initDistFromCam));
 }
 
 function initPositions(nHoriz, nVert, szHoriz, szVert) {

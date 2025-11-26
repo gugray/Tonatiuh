@@ -7,6 +7,7 @@ OK Set gain
 OK Long lines in sails souldn't break
 OK Fast send Tidal: shows funny background
 -- Disable windows button
+-- Disable updates
 
 Revive exiting stuff:
 OK Age & return to mask in GPU animation
@@ -19,15 +20,15 @@ OK No BG clear
 OK Twirlie audio-reactivity
 OK Size audio-reactivity
 OK On-screen metrics
--- Left-right rot
--- Switch between old overlay and sails
+OK Switch between old overlay and sails
+-- Left-right rotate
 
 Sail innovations:
 OK Right-size sails
 OK Faster HTML to canvas
 OK Always overlay (render in different pass, clear depth buffer)
--- Always appear in front of camera; play with distance
--- Traveling sails
+OK Always appear in front of camera
+-- Make it closer and smaller; or play with this?
 
 New stuff shortlist:
 OK Scale boxes out/in at lifetime edges
@@ -43,6 +44,7 @@ OK Instance rotation calculated in worker
 OK Lengthwise rotation speed
 -- "Re-seed" noise (ie random offsets in shader)
 -- Gray god
+-- Simpler return home animation (mod TAU)
 
 Effect ideas:
 XX Synaptic wave animation
@@ -58,3 +60,4 @@ For later, maybe:
 -- Per-instance opacity attribute? Or just global?
 -- Eased animated return to mask
 -- Bloom effect
+-- Traveling sails
