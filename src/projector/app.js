@@ -18,8 +18,8 @@ const jsLiveSocketUrl = "ws://100.67.53.78:8090/relay";
 
 const fadeInTime = 1000; // max 9000
 const fadeOutTime = 2000; // max 9000
-const shadowMapSz = 8192; // 4096
-const shadowCamDim = 10; // 40
+const shadowMapSz = 4096; // 4096
+const shadowCamDim = 20; // 40
 const dbgShowLights = false;
 
 const app = {
@@ -243,17 +243,17 @@ function initThree() {
 
 function setUseShadow() {
   const isOn = params.useShadow;
-  for (const light of app.pointLights) {
-    light.castShadow = isOn;
-    light.shadow.camera.top = shadowCamDim;
-    light.shadow.camera.left = -shadowCamDim;
-    light.shadow.camera.bottom = -shadowCamDim;
-    light.shadow.camera.right = shadowCamDim;
-    light.shadow.camera.near = 1;
-    light.shadow.camera.far = 500;
-    light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
-    light.shadow.radius = 4;
-  }
+  // for (const light of app.pointLights) {
+  //   light.castShadow = isOn;
+  //   light.shadow.camera.top = shadowCamDim;
+  //   light.shadow.camera.left = -shadowCamDim;
+  //   light.shadow.camera.bottom = -shadowCamDim;
+  //   light.shadow.camera.right = shadowCamDim;
+  //   light.shadow.camera.near = 1;
+  //   light.shadow.camera.far = 500;
+  //   light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
+  //   light.shadow.radius = 4;
+  // }
   for (const light of app.dirLights) {
     light.castShadow = isOn;
     light.shadow.camera.top = shadowCamDim;
