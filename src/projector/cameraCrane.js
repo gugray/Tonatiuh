@@ -62,8 +62,18 @@ export function resetCam() {
   camPanAccel.set(0, 0, 0);
 }
 
+function isArrowKey(e) {
+  if (e.key == "ArrowRight" || e.key == "ArrowLeft") return true;
+  else if (e.key == "ArrowUp" || e.key == "ArrowDown") return true;
+  else return false;
+}
+
 function initCamControlEvents() {
   document.body.addEventListener("keydown", (e) => {
+    if (isArrowKey(e)) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     if (homingAnim) return;
     if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
       if (e.key == "ArrowLeft") camRotAccel.y = -camRotThrust;
@@ -102,7 +112,7 @@ function camControlLoop() {
   const dt = now - lastCamTime;
   lastCamTime = now;
 
-  setTimeout(camControlLoop, Math.max(1, 14 - dt));
+  setTimeout(camControlLoop, Math.max(1, 12 - dt));
 
   // If homing animation is in progress: that has full control
   if (homingAnim) {
