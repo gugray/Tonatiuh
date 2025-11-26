@@ -21,6 +21,7 @@ const fadeOutTime = 2000; // max 9000
 const shadowMapSz = 4096; // 4096
 const shadowCamDim = 20; // 40
 const dbgShowLights = false;
+const intialGain = 0.02;
 
 const app = {
   psys: null,
@@ -51,16 +52,18 @@ const params = {
   stableAge: createParam(40000),
   surfOrField: createParam(0), // 0 is surface, 1 is field
   pointTwirlie: createParam(0), // How much twirling is mixed in
+  twirlieAudioGain: createParam(50), // How much audio nudges twirling ahead
   dynScale: createParam(0), // Scale box size by volume
+  lengthRotSpeed: createParam(0), // Speed of lengthwise rotation
   renderBG: false,
-  gain: 0.02,
   bgLinesPerFrame: createParam(0.05),
 };
 
 const state = {
   lastAnimTime: Date.now(),
   time: 0,
-  timeTwirlie: 0,
+  twirlieVal: 0,
+  lengthRotVal: 0,
 };
 
 const cache = {
@@ -243,17 +246,6 @@ function initThree() {
 
 function setUseShadow() {
   const isOn = params.useShadow;
-  // for (const light of app.pointLights) {
-  //   light.castShadow = isOn;
-  //   light.shadow.camera.top = shadowCamDim;
-  //   light.shadow.camera.left = -shadowCamDim;
-  //   light.shadow.camera.bottom = -shadowCamDim;
-  //   light.shadow.camera.right = shadowCamDim;
-  //   light.shadow.camera.near = 1;
-  //   light.shadow.camera.far = 500;
-  //   light.shadow.mapSize.set(shadowMapSz, shadowMapSz);
-  //   light.shadow.radius = 4;
-  // }
   for (const light of app.dirLights) {
     light.castShadow = isOn;
     light.shadow.camera.top = shadowCamDim;
@@ -283,12 +275,12 @@ function initEvents() {
   window.addEventListener("resize", onWindowResize);
   document.body.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
-      document.documentElement.requestFullscreen();
+      void document.documentElement.requestFullscreen();
       e.preventDefault();
       e.stopPropagation();
     } //
     else if (e.key == "a") {
-      connectAudioAPI(params.gain);
+      connectAudioAPI(intialGain);
     } //
     else if (e.key == "c") {
       app.renderer.clear();
@@ -327,11 +319,16 @@ function updateSails(dt) {
 }
 
 function updateInstances(app, cache, params, dt, state) {
-  // app.mMask.geometry.rotateY(0.01);
+  if (params.lengthRotSpeed.get() != 0) {
+    const lrVal = dt * params.lengthRotSpeed.get() * 0.001;
+    state.lengthRotVal += dt * params.lengthRotSpeed.get();
+    app.mMask.geometry.rotateY(lrVal);
+    // app.mMask.geometry.rotation.y = state.lengthRotVal;
+  }
 
   const pointTwirlie = params.pointTwirlie.get();
   if (pointTwirlie != 0) {
-    state.timeTwirlie += dt * 0.2 + app.audio.vol * 100;
+    state.twirlieVal += dt * 0.2 + app.audio.vol * params.twirlieAudioGain.get();
   }
 
   // Dynamic (audio-reactive) scaling
@@ -359,9 +356,9 @@ function updateInstances(app, cache, params, dt, state) {
     // Twirlie around X and Y
     if (pointTwirlie != 0) {
       const twirl =
-        Math.sin(cache.prt.mx / 4 + state.timeTwirlie * 0.0004) +
-        Math.sin(cache.prt.my / 4 + state.timeTwirlie * 0.0004) +
-        Math.sin(cache.prt.cz / 4 + state.timeTwirlie * 0.0004);
+        Math.sin(cache.prt.mx / 4 + state.twirlieVal * 0.0004) +
+        Math.sin(cache.prt.my / 4 + state.twirlieVal * 0.0004) +
+        Math.sin(cache.prt.cz / 4 + state.twirlieVal * 0.0004);
       cache.obj.rotation.y += pointTwirlie * twirl * 1.5;
       cache.obj.rotation.x += pointTwirlie * twirl;
     }
@@ -419,6 +416,7 @@ const commandContext = {
     params.useShadow = isOn;
     setUseShadow();
   },
+  setGain: (val) => app.audio.setGain(val),
   slowCam: () => slowCam(),
   fastCam: () => fastCam(),
   resetCam: () => resetCam(),

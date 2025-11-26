@@ -1,5 +1,12 @@
-Bugs:
--- Fix "reset"
+Top prio/bugs:
+OK Fix "reset"
+OK Keep BG alpha fadeout on zoom
+OK 60FPS
+OK Disable Alt+Left?
+OK Set gain
+-- Long lines in sails souldn't break
+-- Disable windows button
+-- Fast send Tidal: shows funny white
 
 Revive exiting stuff:
 OK Age & return to mask in GPU animation
@@ -12,6 +19,8 @@ OK No BG clear
 OK Twirlie audio-reactivity
 OK Size audio-reactivity
 OK On-screen metrics
+-- Left-right rot
+-- Switch between old overlay and sails
 
 Sail innovations:
 OK Right-size sails
@@ -29,12 +38,11 @@ OK Return camera to default
 OK More point lights; show them for dev
 OK Replace "surface vs field" with lerpable param
 OK Also lerp twirling amount from 0 to 1
--- Lengthwise rotation speed
 OK Smoothed volume
--- Gray god
--- "Re-seed" noise (ie random offsets in shader)
 OK Instance rotation calculated in worker
--- Disable windows button
+OK Lengthwise rotation speed
+-- "Re-seed" noise (ie random offsets in shader)
+-- Gray god
 
 Effect ideas:
 XX Synaptic wave animation
