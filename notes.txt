@@ -4,9 +4,9 @@ OK Keep BG alpha fadeout on zoom
 OK 60FPS
 OK Disable Alt+Left?
 OK Set gain
--- Long lines in sails souldn't break
+OK Long lines in sails souldn't break
+OK Fast send Tidal: shows funny background
 -- Disable windows button
--- Fast send Tidal: shows funny white
 
 Revive exiting stuff:
 OK Age & return to mask in GPU animation

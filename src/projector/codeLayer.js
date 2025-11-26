@@ -76,15 +76,12 @@ export function tidalUpdate(codeStr, renderBitmap) {
   // Create a clone here; render to bitmap, don't wait
   if (renderBitmap) {
     snapdom(elm).then(async (res) => {
-      setTimeout(() => flash(0), 0);
       const canvas = await res.toCanvas();
       if (onTidalCanvasUpdatedFun) onTidalCanvasUpdatedFun(canvas);
     });
   }
-  // If not rendering to texture, flash now
-  else {
-    flash(50);
-  }
+  // If not rendering to texture, flash
+  else flash(50);
 
   function flash(firstTimeout) {
     // Move to top if not fully visible, or if not an identifiable dN section, or a new section
