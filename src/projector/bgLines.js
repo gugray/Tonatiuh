@@ -36,7 +36,6 @@ export class BackgroundLines {
   viewChanged(azim, alt, dist) {
     if (!this.bgImg) return;
 
-    console.log(alt);
     // prettier-ignore
     const newOfs = [
       -Math.PI * azim * this.bgImg.width * 0.07,
@@ -50,13 +49,13 @@ export class BackgroundLines {
     else newAlpha = maxBgAlpha * (1 - (dist - fadeStart) / (fadeEnd - fadeStart));
 
     if (
-      Math.abs(newOfs[0] - this.bgOfs[0]) > 1 ||
-      Math.abs(newOfs[1] - this.bgOfs[1]) > 1 ||
+      // Math.abs(newOfs[0] - this.bgOfs[0]) > 1 ||
+      // Math.abs(newOfs[1] - this.bgOfs[1]) > 1 ||
       Math.abs(newAlpha - this.bgAlpha) > 0.005
     ) {
-      this.bgOfs = newOfs;
       this.bgAlpha = newAlpha;
-      this.bgPat.setTransform(new DOMMatrix().translate(...this.bgOfs));
+      // this.bgOfs = newOfs;
+      // this.bgPat.setTransform(new DOMMatrix().translate(...this.bgOfs));
       this.isCleared = false;
     }
   }
@@ -72,8 +71,9 @@ export class BackgroundLines {
         if (this.bgImg) {
           this.ctx.save();
           this.ctx.globalAlpha = this.bgAlpha;
-          this.ctx.fillStyle = this.bgPat;
-          this.ctx.fillRect(0, 0, this.w, this.h);
+          this.ctx.drawImage(this.bgImg, 0, 0, this.w, this.h);
+          // this.ctx.fillStyle = this.bgPat;
+          // this.ctx.fillRect(0, 0, this.w, this.h);
           this.ctx.restore();
         }
       }
