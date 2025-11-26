@@ -76,6 +76,7 @@ async function runProjector() {
       ".ply": "copy",
       ".jpg": "copy",
       ".png": "copy",
+      ".woff2": "copy",
     },
     write: true,
     metafile: true,

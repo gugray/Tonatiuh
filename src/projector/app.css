@@ -65,9 +65,9 @@ main { height: 100%; width: 100%; }
   font-size: 90%;
   & p {
     position: relative; float: left; clear: both;
-    /*border: 1px solid red;*/
     margin: 0 0 12px 0; padding: 8px 12px;
-    font-family: monospace; white-space: pre-wrap;
+    font-family: "IBM Plex Mono", monospace; white-space: pre;
+    user-select: none;
     background-color: #00000080;
     opacity: 0.3; &.last { opacity: .7; }
     transition: background-color 0.7s ease-out;
@@ -85,3 +85,19 @@ main { height: 100%; width: 100%; }
   & .token.hvariable { color: #7da5b4; }
 }
 
+/* ibm-plex-mono-regular - latin */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/data/ibm-plex-mono-v19-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+}
+/* ibm-plex-mono-600 - latin */
+@font-face {
+  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/data/ibm-plex-mono-v19-latin-600.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
+}

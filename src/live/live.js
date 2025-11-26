@@ -65,3 +65,7 @@ reset();
 setUseShadow(true);
 slowCam();
 params.surfOrField.set(1);
+
+setCodeOffScreen(true);
+
+setCodeOffScreen(false);

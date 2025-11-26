@@ -47,6 +47,7 @@ const params = {
   modelScale: 36,
   preserveBuffer: false,
   useShadow: false,
+  codeOffScreen: true,
   simFieldMul: createParam(2.5),
   simSpeed: createParam(0.0001), // 0.001
   stableAge: createParam(40000),
@@ -138,11 +139,12 @@ async function initApp() {
   animate();
 
   // Audio code messages onto sails
-  CL.setTidalOffscreen(true);
+  CL.setTidalOffscreen(params.codeOffScreen);
   // setTimeout(() => {
   //   CL.fillTidalSamples();
   // }, 500);
   CL.onTidalCanvasUpdated((canvas) => {
+    if (!params.codeOffScreen) return;
     const tx = new THREE.CanvasTexture(canvas);
     const sail = new Sail(tx, canvas.width, canvas.height, 8000);
     app.sailScene.add(sail.mesh);
@@ -323,7 +325,6 @@ function updateInstances(app, cache, params, dt, state) {
     const lrVal = dt * params.lengthRotSpeed.get() * 0.001;
     state.lengthRotVal += dt * params.lengthRotSpeed.get();
     app.mMask.geometry.rotateY(lrVal);
-    // app.mMask.geometry.rotation.y = state.lengthRotVal;
   }
 
   const pointTwirlie = params.pointTwirlie.get();
@@ -417,6 +418,10 @@ const commandContext = {
     setUseShadow();
   },
   setGain: (val) => app.audio.setGain(val),
+  setCodeOffScreen: (val) => {
+    params.codeOffScreen = val;
+    CL.setTidalOffscreen(val);
+  },
   slowCam: () => slowCam(),
   fastCam: () => fastCam(),
   resetCam: () => resetCam(),
@@ -437,7 +442,7 @@ function onSocketMessage(data) {
   }
   // Tidal: display in overlay
   else if (data.source == "tidal") {
-    CL.tidalUpdate(data.content, true);
+    CL.tidalUpdate(data.content, params.codeOffScreen);
   }
 }
 

@@ -80,10 +80,6 @@ export function tidalUpdate(codeStr, renderBitmap) {
       const canvas = await res.toCanvas();
       if (onTidalCanvasUpdatedFun) onTidalCanvasUpdatedFun(canvas);
     });
-    // html2canvas(elm, {backgroundColor: null}).then((canvas) => {
-    //   if (onTidalCanvasUpdatedFun) onTidalCanvasUpdatedFun(canvas);
-    //   flash(0);
-    // });
   }
   // If not rendering to texture, flash now
   else {
