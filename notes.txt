@@ -21,7 +21,7 @@ OK Twirlie audio-reactivity
 OK Size audio-reactivity
 OK On-screen metrics
 OK Switch between old overlay and sails
--- Left-right rotate
+OK Left-right rotate
 
 Sail innovations:
 OK Right-size sails

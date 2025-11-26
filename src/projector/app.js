@@ -47,11 +47,12 @@ const params = {
   seed: 0,
   modelScale: 36,
   preserveBuffer: false,
-  useShadow: false,
-  codeOffScreen: true,
+  useShadow: true,
+  codeOffScreen: false,
   simFieldMul: createParam(2.5),
-  simSpeed: createParam(0.0001), // 0.001
-  stableAge: createParam(40000),
+  simSpeed: createParam(0), // 0.001
+  stableAge: createParam(5000),
+  swing: createParam(1), // left-right swing
   surfOrField: createParam(0), // 0 is surface, 1 is field
   pointTwirlie: createParam(0), // How much twirling is mixed in
   twirlieAudioGain: createParam(50), // How much audio nudges twirling ahead
@@ -335,6 +336,8 @@ function updateInstances(app, cache, params, dt, state) {
   if (pointTwirlie != 0) {
     state.twirlieVal += dt * 0.2 + app.audio.vol * params.twirlieAudioGain.get();
   }
+
+  app.mMask.rotation.y = Math.sin(state.time * 0.0003) * 0.3 * params.swing.get();
 
   // Dynamic (audio-reactive) scaling
   const dsa = 1 - 0.1 * params.dynScale.get();
