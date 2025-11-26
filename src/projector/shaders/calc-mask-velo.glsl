@@ -13,6 +13,7 @@ uniform float fadeOutTime;
 uniform float reset;
 uniform float dt;
 uniform float rand;
+uniform vec3 nzOfs0, nzOfs1, nzOfs2;
 out vec4 outColor;
 
 float getBirthAge(vec2 coord) {
@@ -57,9 +58,12 @@ void main() {
 
     // Get velocity
     pos *= simFieldMul;
-    vec3 posX = pos;
-    vec3 posY = posX + vec3(31.341f, -43.23f, 12.34f);    // random offset
-    vec3 posZ = posX + vec3(-231.341f, 124.23f, -54.34f); // random offset
+//    vec3 posX = pos;
+//    vec3 posY = posX + vec3(31.341f, -43.23f, 12.34f);    // random offset
+//    vec3 posZ = posX + vec3(-231.341f, 124.23f, -54.34f); // random offset
+    vec3 posX = pos + nzOfs0;
+    vec3 posY = pos + nzOfs1;
+    vec3 posZ = pos + nzOfs2;
     vec3 derivX = SimplexPerlin3D_Deriv(posX).yzw;
     vec3 derivY = SimplexPerlin3D_Deriv(posY).yzw;
     vec3 derivZ = SimplexPerlin3D_Deriv(posZ).yzw;

@@ -6,7 +6,7 @@ OK Disable Alt+Left?
 OK Set gain
 OK Long lines in sails souldn't break
 OK Fast send Tidal: shows funny background
--- Disable windows button
+OK Disable windows button
 OK Disable updates
 
 Revive exiting stuff:
@@ -28,7 +28,7 @@ OK Right-size sails
 OK Faster HTML to canvas
 OK Always overlay (render in different pass, clear depth buffer)
 OK Always appear in front of camera
--- Make it closer and smaller; or play with this?
+OK Make it closer and smaller; or play with this?
 
 New stuff shortlist:
 OK Scale boxes out/in at lifetime edges
@@ -42,7 +42,7 @@ OK Also lerp twirling amount from 0 to 1
 OK Smoothed volume
 OK Instance rotation calculated in worker
 OK Lengthwise rotation speed
--- "Re-seed" noise (ie random offsets in shader)
+OK "Re-seed" noise (ie random offsets in shader)
 -- Gray god
 -- Simpler return home animation (mod TAU)
 

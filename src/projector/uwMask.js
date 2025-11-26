@@ -16,6 +16,9 @@ let txVelo, arrVelo, progiVelo;
 let txSurf;
 let txPos0, txPos1, arrPos, progiPosUpdate;
 
+const nzOfs0 = [0, 0, 0];
+const nzOfs1 = [31.341, -43.23, 12.34];
+const nzOfs2 = [-231.341, 124.23, -54.34];
 let simFieldMul, simSpeed;
 let stableAge, fadeInTime, fadeOutTime;
 let reset = 0;
@@ -27,6 +30,7 @@ onmessage = (e) => {
   if ("stableAge" in e.data) stableAge = e.data.stableAge;
   if ("fadeInTime" in e.data) fadeInTime = e.data.fadeInTime;
   if ("fadeOutTime" in e.data) fadeOutTime = e.data.fadeOutTime;
+  if ("reseed" in e.data) reseed();
   if ("reset" in e.data) reset = 1;
   if (e.data.modelBuffer) {
     init(e.data.modelBuffer, e.data.simBuffer, e.data.simCanvas);
@@ -98,6 +102,18 @@ function createDataTexture(sz, initFrom) {
   return [data, tx];
 }
 
+function reseed() {
+  nzOfs0[0] = 512 * Math.random() - 256;
+  nzOfs0[1] = 512 * Math.random() - 256;
+  nzOfs0[2] = 512 * Math.random() - 256;
+  nzOfs1[0] = 512 * Math.random() - 256;
+  nzOfs1[1] = 512 * Math.random() - 256;
+  nzOfs1[2] = 512 * Math.random() - 256;
+  nzOfs2[0] = 512 * Math.random() - 256;
+  nzOfs2[1] = 512 * Math.random() - 256;
+  nzOfs2[2] = 512 * Math.random() - 256;
+}
+
 const unitY = new THREE.Vector3(0, 1, 0);
 const dir = new THREE.Vector3();
 const quat = new THREE.Quaternion();
@@ -159,6 +175,9 @@ function updateSimulation(dt) {
     txSurf: txSurf,
     txPos: txPos0,
     simFieldMul: simFieldMul,
+    nzOfs0: nzOfs0,
+    nzOfs1: nzOfs1,
+    nzOfs2: nzOfs2,
     stableAge: stableAge,
     fadeInTime: fadeInTime,
     fadeOutTime: fadeOutTime,

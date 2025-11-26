@@ -432,6 +432,7 @@ const commandContext = {
   reset: function () {
     app.updater.postMessage({reset: 1});
   },
+  reseed: () => app.updater.postMessage({reseed: 1}),
 };
 
 function onSocketMessage(data) {
