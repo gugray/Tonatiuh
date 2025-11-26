@@ -7,7 +7,7 @@ OK Set gain
 OK Long lines in sails souldn't break
 OK Fast send Tidal: shows funny background
 -- Disable windows button
--- Disable updates
+OK Disable updates
 
 Revive exiting stuff:
 OK Age & return to mask in GPU animation

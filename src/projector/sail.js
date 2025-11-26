@@ -2,9 +2,10 @@ import * as THREE from "three";
 import * as noise from "./noise.js";
 import {simplex3curl} from "./curl.js";
 
+const sizeFactor = 300;
+const initDistFromCam = 60;
 const simFieldMul = 1;
 const simSpeed = 0.00002;
-const initDistFromCam = 40;
 const easeInMsec = 400;
 const easeOutMsec = 4000;
 
@@ -12,12 +13,15 @@ noise.seed(0);
 let renderOrder = 1000;
 
 export class Sail {
-  constructor(tx, w, h, camAzim, camAlt, camPan, lifeTime) {
+  constructor(tx, w, h, canvW, camAzim, camAlt, camPan, lifeTime) {
     const szHoriz = 1;
     const szVert = h / w;
     const nHoriz = Math.round(w / 5);
     const nVert = Math.round(h / 5);
+    const meshScale = (w / canvW / devicePixelRatio) * sizeFactor;
 
+    console.log(canvW);
+    console.log(w);
     // console.log(`Sail ${szHoriz} x ${szVert} pixels => ${nHoriz} x ${nVert} segments`);
 
     this.nVerts = (nHoriz + 1) * (nVert + 1);
@@ -25,7 +29,7 @@ export class Sail {
     this.sarrBuf = initPositions(nHoriz, nVert, szHoriz, szVert);
     // Geometry
     this.mesh = makeCodeSailMesh(tx, nHoriz, nVert, new Float32Array(this.sarrBuf));
-    this.mesh.scale.set(w / 20, w / 20, 1);
+    this.mesh.scale.set(meshScale, meshScale, 1);
     positionMesh(this.mesh, camAzim, camAlt, camPan);
     this.mesh.material.map = tx;
     this.mesh.material.needsUpdate = true;

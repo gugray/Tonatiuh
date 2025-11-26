@@ -141,7 +141,9 @@ async function initApp() {
     if (!params.codeOffScreen) return;
     app.camera.getWorldPosition(cache.camPos);
     const tx = new THREE.CanvasTexture(canvas);
-    const sail = new Sail(tx, canvas.width, canvas.height, state.camAzim, state.camAlt, state.camPan, sailLifeMsec);
+    // prettier-ignore
+    const sail = new Sail(tx, canvas.width, canvas.height,
+      window.innerWidth, state.camAzim, state.camAlt, state.camPan, sailLifeMsec);
     app.sailScene.add(sail.mesh);
     app.sails.push(sail);
   });
