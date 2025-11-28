@@ -20,8 +20,6 @@ export class Sail {
     const nVert = Math.round(h / 5);
     const meshScale = (w / canvW / devicePixelRatio) * sizeFactor;
 
-    console.log(canvW);
-    console.log(w);
     // console.log(`Sail ${szHoriz} x ${szVert} pixels => ${nHoriz} x ${nVert} segments`);
 
     this.nVerts = (nHoriz + 1) * (nVert + 1);
@@ -127,7 +125,7 @@ function positionMesh(mesh, camAzim, camAlt, camPan) {
   const azimGroup = new THREE.Group();
   azimGroup.add(altGroup);
   panGroup.position.copy(camPan);
-  dirGroup.position.z = camPan.z;
+  dirGroup.position.z = Math.abs(camPan.z);
   altGroup.rotation.x = camAlt;
   azimGroup.rotation.y = camAzim;
   camObj.updateMatrix();
