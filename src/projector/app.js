@@ -133,6 +133,8 @@ async function initApp() {
   if (tidalLiveSocketUrl) initReceiver(tidalLiveSocketUrl, onSocketMessage);
   onWindowResize();
 
+  slowCam();
+
   // Start the movie
   animate();
 

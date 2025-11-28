@@ -15,8 +15,7 @@ params.bgLinesPerFrame.set(0.01);
 
 // Calibrate point twirly gain
 params.pointTwirlie.set(1);
-
-params.twirlieAudioGain.set(60);
+params.twirlieAudioGain.set(30);
 
 params.dynScale.set(0.5);
 
@@ -36,15 +35,13 @@ params.bgLinesPerFrame.set(0.01);
 // Starts swinging, just view for a bit
 
 // Swinging off
-params.swing.inoutTo(0.5, 5);
+params.swing.inoutTo(0, 30);
 
 // Start by gently disturbing
 // Don't go flow-ways
-params.lengthRotSpeed.lerpTo(1.5, 15);
-
-params.simSpeed.inoutTo(0.00004, 5);
-
-params.stableAge.set(10000);
+params.lengthRotSpeed.lerpTo(1, 15);
+params.simSpeed.inoutTo(0.00001, 15);
+params.stableAge.set(4000);
 
 // Double sim speed, increase age
 params.simSpeed.inoutTo(0.00001, 15);
@@ -64,14 +61,10 @@ reset();
 
 // Point twirlie off, anim start, big bulb
 params.simFieldMul.set(1.2);
-
-params.pointTwirlie.lerpTo(1, 5);
-
-params.surfOrField.lerpTo(0, 15);
-
-params.simSpeed.inoutTo(0.0002, 15);
-
-params.stableAge.set(7000);
+params.pointTwirlie.lerpTo(0, 5);
+params.surfOrField.lerpTo(1, 15);
+params.simSpeed.inoutTo(0.00005, 15);
+params.stableAge.set(5000);
 
 // Expand, faster, broader
 // Reset a few times
@@ -86,14 +79,14 @@ params.stableAge.set(7000);
 
 params.simSpeed.inoutTo(0.0001, 5);
 
-params.stableAge.set(30000);
+params.stableAge.set(10000);
 
 reset();
 reseed();
 
 reset();
 
-params.simFieldMul.set(2);
+params.simFieldMul.set(1.5);
 reset();
 
 resetCam();
@@ -101,16 +94,15 @@ resetCam();
 // .5: slow  1: decent  2: brisk 
 params.lengthRotSpeed.set(1);
 
-params.simSpeed.inoutTo(0.0004, 5);
+params.simSpeed.inoutTo(0.0001, 5);
 
-params.stableAge.set(25000);
+params.stableAge.set(15000);
 
-params.simSpeed.inoutTo(0.00002, 5);
+params.simSpeed.inoutTo(0.0002, 5);
 
 params.stableAge.set(55000);
 
-params.simFieldMul.set(2.5);
-
+params.simFieldMul.set(1.5);
 reset();
 
 reset();
@@ -122,16 +114,15 @@ setCodeOffScreen(true);
 setCodeOffScreen(false);
 
 // Background lines
-params.renderBG = false;
-params.bgLinesPerFrame.set(0.005);
+params.renderBG = true;
 
-params.dynScale.set(0);
+params.bgLinesPerFrame.set(0.05);
+
+params.dynScale.set(0.5);
 
 // .5: slow  1: decent  2: brisk 
 params.lengthRotSpeed.set(2);
 
-reset();
-reseed();
 
 resetCam();
 

@@ -1,6 +1,6 @@
 import {Color} from "three";
 
-const maxBgAlpha = 0.15;
+const maxBgAlpha = 0.11;
 
 export class BackgroundLines {
   constructor(elmCanvas, allColors, params, audio, bgImg) {
